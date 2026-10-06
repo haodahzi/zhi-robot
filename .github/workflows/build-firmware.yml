@@ -1,0 +1,59 @@
+name: Build firmware
+
+# 在 GitHub 云端编译小纸壳机器人固件，不需要在本机安装 ESP-IDF。
+# 触发方式：1) 推送到仓库；2) Actions 页面手动点 Run workflow。
+# 编译完成后，在运行详情页底部 Artifacts 里下载 xiaozhi-cardboard-bot-s3.zip，
+# 解压得到 merged-binary.bin，刷入地址 0x0。
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: 上游 78/xiaozhi-esp32 的分支、标签或提交（默认固定在已验证补丁可用的版本）
+        required: false
+        default: ""
+
+env:
+  # 补丁基于这个上游提交制作；上游改动后补丁可能失效，所以默认固定版本
+  UPSTREAM_REF_DEFAULT: 0d576d3d4c049c6f55eaf879725dc23e516511b4
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v6.1
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v7
+        with:
+          path: robot
+
+      - name: Checkout upstream xiaozhi-esp32
+        uses: actions/checkout@v7
+        with:
+          repository: 78/xiaozhi-esp32
+          ref: ${{ inputs.upstream_ref || env.UPSTREAM_REF_DEFAULT }}
+          path: xiaozhi
+
+      - name: Add board and apply patch
+        shell: bash
+        run: |
+          git config --global --add safe.directory '*'
+          cp -r robot/boards/cardboard-bot-s3 xiaozhi/main/boards/
+          cd xiaozhi
+          git apply --verbose ../robot/register-board.patch
+
+      - name: Build cardboard-bot-s3
+        shell: bash
+        working-directory: xiaozhi
+        run: |
+          source "$IDF_PATH/export.sh"
+          python scripts/build.py cardboard-bot-s3
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v7
+        with:
+          name: xiaozhi-cardboard-bot-s3
+          path: xiaozhi/build/merged-binary.bin
+          if-no-files-found: error
