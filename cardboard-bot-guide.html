@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小纸壳机器人搭建手册</title>
+<style>:root{color-scheme:light dark}body{margin:0}[hidden]{display:none!important}</style>
+
+<style>
+:root{
+  --bg:#f5f6f3; --surface:#ffffff; --fg:#1b2220; --muted:#59645f; --line:#d8ded9; --soft:#edf1ee;
+  --accent:#0b6e54; --accent-soft:#dff2ea;
+  --ok:#17803d; --ok-soft:#e2f4e8; --warn:#9a6700; --warn-soft:#fff1cc; --bad:#c62828; --bad-soft:#fde6e4;
+  --c3v3:#d97a00; --c5v:#d1242f; --cgnd:#3d4743;
+  --mic:#0c8a85; --amp:#2f6fde; --oled:#8250df; --touch:#1c9a4b; --ir:#b98300; --servo:#d6336c; --chg:#c2410c; --esp:#3d4743;
+  --hdfg:#ffffff; --code:#eef2ef;
+  --mono: ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121715; --surface:#1a211e; --fg:#e8eeea; --muted:#9aa8a1; --line:#2c3732; --soft:#222b27;
+    --accent:#4fd1a5; --accent-soft:#163329;
+    --ok:#5fd68a; --ok-soft:#14301f; --warn:#f0c04a; --warn-soft:#3a2f10; --bad:#ff8a80; --bad-soft:#3d1c1a;
+    --c3v3:#ffa23a; --c5v:#ff6b6b; --cgnd:#aab6b0;
+    --mic:#2fc4bd; --amp:#6f9cff; --oled:#b18cff; --touch:#4fd17f; --ir:#e6b422; --servo:#ff7aa8; --chg:#ff9a5c; --esp:#aab6b0;
+    --hdfg:#101513; --code:#222b27; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121715; --surface:#1a211e; --fg:#e8eeea; --muted:#9aa8a1; --line:#2c3732; --soft:#222b27;
+  --accent:#4fd1a5; --accent-soft:#163329;
+  --ok:#5fd68a; --ok-soft:#14301f; --warn:#f0c04a; --warn-soft:#3a2f10; --bad:#ff8a80; --bad-soft:#3d1c1a;
+  --c3v3:#ffa23a; --c5v:#ff6b6b; --cgnd:#aab6b0;
+  --mic:#2fc4bd; --amp:#6f9cff; --oled:#b18cff; --touch:#4fd17f; --ir:#e6b422; --servo:#ff7aa8; --chg:#ff9a5c; --esp:#aab6b0;
+  --hdfg:#101513; --code:#222b27; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.7;margin:0;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:860px;margin-inline:auto}
+header.top{padding-block:28px 8px}
+h1{font-size:clamp(1.7rem,5vw,2.3rem);line-height:1.2;margin:0 0 6px;text-wrap:balance}
+.sub{color:var(--muted);margin:0}
+h2{font-size:1.5rem;line-height:1.3;margin:0 0 4px;text-wrap:balance}
+h3{font-size:1.1rem;margin:26px 0 8px;text-wrap:balance}
+p{margin:8px 0}
+nav.stages{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);margin-inline:-16px;padding:8px 16px;display:flex;gap:8px;overflow-x:auto;white-space:nowrap}
+nav.stages a{flex:none;text-decoration:none;color:var(--fg);background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:.9rem}
+nav.stages a:hover,nav.stages a:focus-visible{background:var(--accent-soft);border-color:var(--accent);outline:none}
+section.stage{padding-block:40px 8px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0}
+.time{color:var(--muted);font-size:.9rem;margin:0 0 12px}
+.callout{border-radius:10px;padding:12px 16px;margin:14px 0;border:1px solid var(--line);background:var(--surface)}
+.callout b.t{display:block;margin-bottom:2px}
+.callout.rule{border-color:var(--bad);background:var(--bad-soft)}
+.callout.warn{border-color:var(--warn);background:var(--warn-soft)}
+.callout.ok{border-color:var(--ok);background:var(--ok-soft)}
+.callout.info{background:var(--soft)}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:14px 0}
+.grid3 .callout{margin:0}
+table{border-collapse:collapse;width:100%;font-size:.94rem}
+.tw{overflow-x:auto;margin:12px 0;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--soft);font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+code,.pin{font-family:var(--mono);font-size:.88em;background:var(--code);padding:1px 6px;border-radius:4px;white-space:nowrap}
+.v33{color:var(--c3v3);font-weight:600}.v5{color:var(--c5v);font-weight:600}.vg{font-weight:600}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+ol.steps>li{counter-increment:s;position:relative;padding:4px 0 10px 44px;margin:0}
+ol.steps>li::before{content:counter(s);position:absolute;left:0;top:4px;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--hdfg);font-weight:700;display:grid;place-items:center;font-size:.9rem}
+.check{border:2px solid var(--ok);background:var(--ok-soft);border-radius:12px;padding:12px 16px;margin:16px 0}
+.check h4{margin:0 0 6px;color:var(--ok);font-size:1rem}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:4px 0;cursor:pointer}
+.chk input{margin-top:6px;width:18px;height:18px;flex:none;accent-color:var(--accent)}
+.svgwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:8px;margin:12px 0}
+svg.diagram{display:block;width:100%;height:auto}
+svg .box{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+svg .hd-mic{fill:var(--mic)}svg .hd-amp{fill:var(--amp)}svg .hd-oled{fill:var(--oled)}svg .hd-touch{fill:var(--touch)}
+svg .hd-ir{fill:var(--ir)}svg .hd-servo{fill:var(--servo)}svg .hd-chg{fill:var(--chg)}svg .hd-esp{fill:var(--esp)}
+svg .t-hd{font:700 13px var(--sans);fill:var(--hdfg)}
+svg .t-pin{font:600 13px var(--mono);fill:var(--fg)}
+svg .t-to{font:12px var(--mono);fill:var(--muted)}
+svg .t-note{font:12px var(--sans);fill:var(--muted)}
+svg .t-esp{font:700 14px var(--mono);fill:var(--fg)}
+svg .t-bp{font:600 12px var(--mono);fill:var(--fg)}
+svg .t-ann{font:600 12.5px var(--sans)}
+svg .t-board{font:700 17px var(--mono);fill:var(--muted)}
+svg .t-usb{font:700 11px var(--mono);fill:var(--muted)}
+svg .wire{fill:none;stroke-width:2.6;stroke-linecap:round;opacity:.92}
+svg .w-3v3{stroke:var(--c3v3);fill:var(--c3v3)}svg .w-5v{stroke:var(--c5v);fill:var(--c5v)}svg .w-gnd{stroke:var(--cgnd);fill:var(--cgnd)}
+svg .w-mic{stroke:var(--mic);fill:var(--mic)}svg .w-amp{stroke:var(--amp);fill:var(--amp)}svg .w-oled{stroke:var(--oled);fill:var(--oled)}
+svg .w-touch{stroke:var(--touch);fill:var(--touch)}svg .w-ir{stroke:var(--ir);fill:var(--ir)}svg .w-servo{stroke:var(--servo);fill:var(--servo)}svg .w-esp{stroke:var(--esp);fill:var(--esp)}
+svg path.wire{fill:none}
+svg .dot{stroke:none}
+svg .boardrect{fill:var(--soft);stroke:var(--line);stroke-width:2}
+svg .usb{fill:var(--surface);stroke:var(--muted);stroke-width:1.5}
+svg .dd-3v3{fill:var(--c3v3)}svg .dd-5v{fill:var(--c5v)}svg .dd-gnd{fill:var(--cgnd)}
+svg .dd-mic{fill:var(--mic)}svg .dd-amp{fill:var(--amp)}svg .dd-oled{fill:var(--oled)}svg .dd-touch{fill:var(--touch)}svg .dd-ir{fill:var(--ir)}svg .dd-servo{fill:var(--servo)}
+svg .d-none{fill:var(--line)}
+svg .ban{stroke:var(--bad);stroke-width:2.2;stroke-linecap:round}
+svg .a-3v3{fill:var(--c3v3)}svg .a-5v{fill:var(--c5v)}svg .a-gnd{fill:var(--cgnd)}svg .a-mic{fill:var(--mic)}svg .a-amp{fill:var(--amp)}
+svg .a-oled{fill:var(--oled)}svg .a-touch{fill:var(--touch)}svg .a-ir{fill:var(--ir)}svg .a-servo{fill:var(--servo)}svg .a-ban{fill:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.88rem;color:var(--muted);margin:8px 0}
+.legend i{display:inline-block;width:22px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+details{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:12px 0;padding:2px 14px}
+summary{cursor:pointer;font-weight:600;padding:8px 0}
+pre{background:var(--code);border-radius:8px;padding:12px;overflow-x:auto;font-family:var(--mono);font-size:.85rem;line-height:1.55;margin:8px 0}
+.pill{display:inline-block;font-size:.78rem;font-weight:600;border-radius:999px;padding:1px 10px;border:1px solid currentColor;vertical-align:middle}
+.pill.todo{color:var(--warn)}
+.footer{color:var(--muted);font-size:.88rem;padding-top:24px}
+#prog{color:var(--muted);font-size:.9rem;margin:6px 0 0}
+@media (max-width:520px){ body{font-size:15.5px} ol.steps>li{padding-left:40px} }
+@media (prefers-reduced-motion:no-preference){ nav.stages a{transition:background .15s} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">ESP32-S3 × 小智 · 零基础版</p>
+  <h1>小纸壳机器人搭建手册</h1>
+  <p class="sub">不需要万用表,不需要电解电容,先不脱机。每一步都有「检查点」,过了再往下走。</p>
+  <p id="prog"></p>
+</header>
+<nav class="stages" aria-label="阶段导航">
+  <a href="#s0">0 准备</a><a href="#s1">1 声音+屏幕</a><a href="#s2">2 刷纸壳固件</a>
+  <a href="#s3">3 触摸+红外</a><a href="#s4">4 舵机</a><a href="#s5">5 装壳</a><a href="#ref">附录</a>
+</nav>
+
+<div class="callout info">
+  <b class="t">怎么用这份手册</b>
+  一共 5 个阶段,<b>每个阶段只加一样东西</b>。每个阶段末尾的绿色「检查点」全部打勾后,才能进入下一阶段。
+  打勾的状态会记在这个浏览器里。卡住了,把「看到的现象」和「接线照片」发给我,我来判断。
+</div>
+
+<!-- ======================================================= 0 -->
+<section class="stage" id="s0">
+  <p class="eyebrow">阶段 0</p><h2>准备工作</h2><p class="time">预计 30~60 分钟 · 全程不接任何电</p>
+
+  <h3>0.1 零件清单</h3>
+  <div class="tw"><table><thead><tr><th>零件</th><th>数量</th><th>买的时候注意</th></tr></thead><tbody><tr><td>ESP32-S3-DevKitC-1(N16R8)</td><td>1</td><td>两排排针,板上有两个 Type-C 口</td></tr><tr><td>INMP441 麦克风模块</td><td>1</td><td><b>排针常常是散装的,要自己焊</b></td></tr><tr><td>MAX98357A 功放模块 + 4~8Ω 3W 喇叭</td><td>各 1</td><td>功放排针同样可能要自己焊</td></tr><tr><td>SSD1306 OLED 屏</td><td>1</td><td>必须是 <b>4 针 I2C</b>(GND VCC SCL SDA),不是 7 针 SPI</td></tr><tr><td>TTP223 触摸模块</td><td>1</td><td>排针可能要焊</td></tr><tr><td>红外避障模块(FC-51 一类)</td><td>2</td><td>商品页要写「3.3V~5V」;模块上有一个小电位器和指示灯</td></tr><tr><td>SG90 舵机</td><td>2</td><td>3 根线:棕、红、橙(或黄)</td></tr><tr><td>5V 2A 充电头 + USB 公头转接线端子板</td><td>各 1</td><td><b>不要剪数据线</b>,买转接板更安全</td></tr><tr><td>面包板 + 杜邦线(公对公、公对母、母对母)</td><td>若干</td><td>线越多越好,接错重来很方便</td></tr><tr><td>能传数据的 Type-C 线</td><td>1</td><td>只能充电的线刷不了机</td></tr></tbody></table></div>
+  <p>暂时<b>不需要</b>:万用表、电解电容、二极管。(以后遇到特定现象才买,见附录。)</p>
+
+  <h3>0.2 三条铁律(背下来就不会烧板)</h3>
+  <div class="grid3">
+    <div class="callout rule"><b class="t">① 3V3 和 5V 绝不混</b>
+      麦克风、OLED、触摸、红外 → 只接 <span class="v33">3V3</span>。<br>
+      功放、舵机 → 只接 <span class="v5">5V</span>。<br>
+      INMP441 接了 5V 会直接损坏。</div>
+    <div class="callout rule"><b class="t">② 先拔电,再动线</b>
+      改任何一根线之前,先拔掉 USB 线和充电头。<br>
+      接完再检查一遍,再上电。</div>
+    <div class="callout rule"><b class="t">③ 所有 GND 连在一起</b>
+      开发板、每个模块、充电头的 GND 是同一个「地」。<br>
+      舵机阶段漏掉共地,舵机会乱抖。</div>
+  </div>
+
+  <h3>0.3 哪个模块接哪种电</h3>
+  <div class="tw"><table><thead><tr><th>模块</th><th>电源脚</th><th>接到</th><th>为什么</th></tr></thead><tbody><tr><td>INMP441 麦克风</td><td>VDD</td><td><span class="v33">开发板 3V3</span></td><td>它输出的信号最高等于它的供电电压,开发板引脚最多承受 3.3V</td></tr><tr><td>SSD1306 OLED</td><td>VCC</td><td><span class="v33">开发板 3V3</span></td><td>同上</td></tr><tr><td>TTP223 触摸</td><td>VCC</td><td><span class="v33">开发板 3V3</span></td><td>同上</td></tr><tr><td>左/右红外</td><td>VCC</td><td><span class="v33">开发板 3V3</span></td><td>同上</td></tr><tr><td>MAX98357A 功放</td><td>VIN</td><td><span class="v5">开发板 5V</span></td><td>它只接收信号,不向开发板输出电压,安全;5V 音量更足</td></tr><tr><td>SG90 舵机 ×2</td><td>红线</td><td><span class="v5">充电头 +5V</span></td><td>舵机电流大,<b>不能用开发板供电</b></td></tr></tbody></table></div>
+
+  <h3>0.4 认识开发板:每个引脚在哪</h3>
+  <p>板子放正:天线端朝上,USB 口朝下。下面是 DevKitC-1 的排针,<b>彩色圆点是你要接的</b>,红叉是禁区。</p>
+  <div class="svgwrap"><svg viewBox="0 0 760 742" role="img" aria-label="开发板引脚位置图" class="diagram" style="min-width:640px"><rect x="230" y="52" width="300" height="682" rx="12" class="boardrect"/><text x="380.0" y="38" class="t-note" text-anchor="middle">▲ 天线端(板子顶部)</text><text x="380.0" y="371.0" class="t-board" text-anchor="middle">ESP32-S3</text><text x="380.0" y="393.0" class="t-note" text-anchor="middle">DevKitC-1</text><rect x="290" y="660" width="72" height="30" rx="5" class="usb"/><text x="326" y="679" class="t-usb" text-anchor="middle">UART</text><rect x="398" y="660" width="72" height="30" rx="5" class="usb"/><text x="434" y="679" class="t-usb" text-anchor="middle">USB</text><text x="326" y="706" class="t-note" text-anchor="middle">刷机/供电用这个</text><circle cx="244" cy="108.5" r="5" class="dot dd-3v3"/><text x="258" y="112.5" class="t-bp" text-anchor="start">3V3</text><text x="216" y="112.5" class="t-ann a-3v3" text-anchor="end">3V3: 各模块 VCC/VDD</text><circle cx="244" cy="133.5" r="5" class="dot dd-3v3"/><text x="258" y="137.5" class="t-bp" text-anchor="start">3V3</text><text x="216" y="137.5" class="t-ann a-3v3" text-anchor="end">3V3(同上, 任选)</text><circle cx="244" cy="158.5" r="5" class="dot d-none"/><text x="258" y="162.5" class="t-bp" text-anchor="start">RST</text><circle cx="244" cy="183.5" r="5" class="dot dd-mic"/><text x="258" y="187.5" class="t-bp" text-anchor="start">GPIO4</text><text x="216" y="187.5" class="t-ann a-mic" text-anchor="end">麦克风 WS</text><circle cx="244" cy="208.5" r="5" class="dot dd-mic"/><text x="258" y="212.5" class="t-bp" text-anchor="start">GPIO5</text><text x="216" y="212.5" class="t-ann a-mic" text-anchor="end">麦克风 SCK</text><circle cx="244" cy="233.5" r="5" class="dot dd-mic"/><text x="258" y="237.5" class="t-bp" text-anchor="start">GPIO6</text><text x="216" y="237.5" class="t-ann a-mic" text-anchor="end">麦克风 SD</text><circle cx="244" cy="258.5" r="5" class="dot dd-amp"/><text x="258" y="262.5" class="t-bp" text-anchor="start">GPIO7</text><text x="216" y="262.5" class="t-ann a-amp" text-anchor="end">功放 DIN</text><circle cx="244" cy="283.5" r="5" class="dot dd-amp"/><text x="258" y="287.5" class="t-bp" text-anchor="start">GPIO15</text><text x="216" y="287.5" class="t-ann a-amp" text-anchor="end">功放 BCLK</text><circle cx="244" cy="308.5" r="5" class="dot dd-amp"/><text x="258" y="312.5" class="t-bp" text-anchor="start">GPIO16</text><text x="216" y="312.5" class="t-ann a-amp" text-anchor="end">功放 LRC</text><circle cx="244" cy="333.5" r="5" class="dot dd-servo"/><text x="258" y="337.5" class="t-bp" text-anchor="start">GPIO17</text><text x="216" y="337.5" class="t-ann a-servo" text-anchor="end">水平舵机 信号</text><circle cx="244" cy="358.5" r="5" class="dot dd-servo"/><text x="258" y="362.5" class="t-bp" text-anchor="start">GPIO18</text><text x="216" y="362.5" class="t-ann a-servo" text-anchor="end">俯仰舵机 信号</text><circle cx="244" cy="383.5" r="5" class="dot d-none"/><text x="258" y="387.5" class="t-bp" text-anchor="start">GPIO8</text><path d="M240 404.5 L248 412.5 M248 404.5 L240 412.5" class="ban"/><text x="258" y="412.5" class="t-bp" text-anchor="start">GPIO3</text><text x="216" y="412.5" class="t-ann a-ban" text-anchor="end">不要接</text><path d="M240 429.5 L248 437.5 M248 429.5 L240 437.5" class="ban"/><text x="258" y="437.5" class="t-bp" text-anchor="start">GPIO46</text><text x="216" y="437.5" class="t-ann a-ban" text-anchor="end">不要接</text><circle cx="244" cy="458.5" r="5" class="dot dd-ir"/><text x="258" y="462.5" class="t-bp" text-anchor="start">GPIO9</text><text x="216" y="462.5" class="t-ann a-ir" text-anchor="end">左红外 OUT</text><circle cx="244" cy="483.5" r="5" class="dot dd-ir"/><text x="258" y="487.5" class="t-bp" text-anchor="start">GPIO10</text><text x="216" y="487.5" class="t-ann a-ir" text-anchor="end">右红外 OUT</text><circle cx="244" cy="508.5" r="5" class="dot d-none"/><text x="258" y="512.5" class="t-bp" text-anchor="start">GPIO11</text><circle cx="244" cy="533.5" r="5" class="dot d-none"/><text x="258" y="537.5" class="t-bp" text-anchor="start">GPIO12</text><circle cx="244" cy="558.5" r="5" class="dot d-none"/><text x="258" y="562.5" class="t-bp" text-anchor="start">GPIO13</text><circle cx="244" cy="583.5" r="5" class="dot d-none"/><text x="258" y="587.5" class="t-bp" text-anchor="start">GPIO14</text><circle cx="244" cy="608.5" r="5" class="dot dd-5v"/><text x="258" y="612.5" class="t-bp" text-anchor="start">5V</text><text x="216" y="612.5" class="t-ann a-5v" text-anchor="end">5V: 功放 VIN</text><circle cx="244" cy="633.5" r="5" class="dot dd-gnd"/><text x="258" y="637.5" class="t-bp" text-anchor="start">GND</text><text x="216" y="637.5" class="t-ann a-gnd" text-anchor="end">GND: 所有地线</text><circle cx="516" cy="108.5" r="5" class="dot dd-gnd"/><text x="502" y="112.5" class="t-bp" text-anchor="end">GND</text><text x="544" y="112.5" class="t-ann a-gnd" text-anchor="start">GND: 所有地线</text><path d="M512 129.5 L520 137.5 M520 129.5 L512 137.5" class="ban"/><text x="502" y="137.5" class="t-bp" text-anchor="end">TX</text><text x="544" y="137.5" class="t-ann a-ban" text-anchor="start">不要接</text><path d="M512 154.5 L520 162.5 M520 154.5 L512 162.5" class="ban"/><text x="502" y="162.5" class="t-bp" text-anchor="end">RX</text><text x="544" y="162.5" class="t-ann a-ban" text-anchor="start">不要接</text><circle cx="516" cy="183.5" r="5" class="dot d-none"/><text x="502" y="187.5" class="t-bp" text-anchor="end">GPIO1</text><circle cx="516" cy="208.5" r="5" class="dot d-none"/><text x="502" y="212.5" class="t-bp" text-anchor="end">GPIO2</text><circle cx="516" cy="233.5" r="5" class="dot dd-oled"/><text x="502" y="237.5" class="t-bp" text-anchor="end">GPIO42</text><text x="544" y="237.5" class="t-ann a-oled" text-anchor="start">OLED SCL</text><circle cx="516" cy="258.5" r="5" class="dot dd-oled"/><text x="502" y="262.5" class="t-bp" text-anchor="end">GPIO41</text><text x="544" y="262.5" class="t-ann a-oled" text-anchor="start">OLED SDA</text><circle cx="516" cy="283.5" r="5" class="dot d-none"/><text x="502" y="287.5" class="t-bp" text-anchor="end">GPIO40</text><circle cx="516" cy="308.5" r="5" class="dot d-none"/><text x="502" y="312.5" class="t-bp" text-anchor="end">GPIO39</text><circle cx="516" cy="333.5" r="5" class="dot d-none"/><text x="502" y="337.5" class="t-bp" text-anchor="end">GPIO38</text><path d="M512 354.5 L520 362.5 M520 354.5 L512 362.5" class="ban"/><text x="502" y="362.5" class="t-bp" text-anchor="end">GPIO37</text><text x="544" y="362.5" class="t-ann a-ban" text-anchor="start">不要接</text><path d="M512 379.5 L520 387.5 M520 379.5 L512 387.5" class="ban"/><text x="502" y="387.5" class="t-bp" text-anchor="end">GPIO36</text><text x="544" y="387.5" class="t-ann a-ban" text-anchor="start">不要接</text><path d="M512 404.5 L520 412.5 M520 404.5 L512 412.5" class="ban"/><text x="502" y="412.5" class="t-bp" text-anchor="end">GPIO35</text><text x="544" y="412.5" class="t-ann a-ban" text-anchor="start">不要接</text><path d="M512 429.5 L520 437.5 M520 429.5 L512 437.5" class="ban"/><text x="502" y="437.5" class="t-bp" text-anchor="end">GPIO0</text><text x="544" y="437.5" class="t-ann a-ban" text-anchor="start">不要接</text><path d="M512 454.5 L520 462.5 M520 454.5 L512 462.5" class="ban"/><text x="502" y="462.5" class="t-bp" text-anchor="end">GPIO45</text><text x="544" y="462.5" class="t-ann a-ban" text-anchor="start">不要接</text><path d="M512 479.5 L520 487.5 M520 479.5 L512 487.5" class="ban"/><text x="502" y="487.5" class="t-bp" text-anchor="end">GPIO48</text><text x="544" y="487.5" class="t-ann a-ban" text-anchor="start">不要接</text><circle cx="516" cy="508.5" r="5" class="dot dd-touch"/><text x="502" y="512.5" class="t-bp" text-anchor="end">GPIO47</text><text x="544" y="512.5" class="t-ann a-touch" text-anchor="start">触摸 I/O</text><circle cx="516" cy="533.5" r="5" class="dot d-none"/><text x="502" y="537.5" class="t-bp" text-anchor="end">GPIO21</text><path d="M512 554.5 L520 562.5 M520 554.5 L512 562.5" class="ban"/><text x="502" y="562.5" class="t-bp" text-anchor="end">GPIO20</text><text x="544" y="562.5" class="t-ann a-ban" text-anchor="start">不要接</text><path d="M512 579.5 L520 587.5 M520 579.5 L512 587.5" class="ban"/><text x="502" y="587.5" class="t-bp" text-anchor="end">GPIO19</text><text x="544" y="587.5" class="t-ann a-ban" text-anchor="start">不要接</text><circle cx="516" cy="608.5" r="5" class="dot dd-gnd"/><text x="502" y="612.5" class="t-bp" text-anchor="end">GND</text><text x="544" y="612.5" class="t-ann a-gnd" text-anchor="start">GND: 所有地线</text><circle cx="516" cy="633.5" r="5" class="dot dd-gnd"/><text x="502" y="637.5" class="t-bp" text-anchor="end">GND</text><text x="544" y="637.5" class="t-ann a-gnd" text-anchor="start">GND: 所有地线</text></svg></div>
+  <div class="legend"><span><i style="background:var(--c3v3)"></i>3V3 线(3.3V 电)</span><span><i style="background:var(--c5v)"></i>5V 线(5V 电)</span><span><i style="background:var(--cgnd)"></i>GND 线(地线)</span><span><i style="background:var(--mic)"></i>信号线(颜色随模块)</span></div>
+  <div class="callout warn"><b class="t">你的板子可能不一样</b>
+    不同厂家的 S3 板排针顺序可能不同。<b>以板子上印的字为准</b>,不要数第几根。
+    如果你的板子丝印和上图对不上,拍一张正反面照片发给我。</div>
+
+  <h3>0.5 接线方法:读线法(代替万用表)</h3>
+  <ol class="steps">
+    <li><b>一次只接一个模块。</b>接完一个,再接下一个。</li>
+    <li>每根线都念一遍:「<b>模块的〔丝印名〕</b> → <b>开发板的〔丝印名〕</b>」。例如「麦克风 WS → GPIO4」。</li>
+    <li>按<b>模块上印的字</b>接,不要按位置数。</li>
+    <li>接完拍一张清晰照片。对照本页接线图,逐根打勾。</li>
+    <li>线头不要碰到旁边的排针;容易松的地方用胶带固定。</li>
+  </ol>
+
+  <h3>0.6 上电三步法(代替万用表检查短路)</h3>
+  <ol class="steps">
+    <li>只插 USB 线,<b>其他电源都不接</b>。</li>
+    <li><b>3 秒内</b>:盯着看有没有冒烟、有没有焦糊味。有 → 立刻拔线。</li>
+    <li>上电 10 秒后,用手背轻碰开发板上的芯片和每个模块上的小芯片。<b>烫手 → 立刻拔线</b>,检查接线(最可能是 3V3 和 5V 接反或碰在一起)。</li>
+  </ol>
+
+  <h3>0.7 开箱确认</h3>
+  <div class="check"><h4>✅ 检查点 0:开箱确认</h4>
+    <label class="chk"><input type="checkbox" data-k="c1"><span>板子上能找到丝印:3V3、5V(或 VIN、VBUS)、GND,以及 GPIO4、5、6、7、9、10、15、16、17、18、41、42、47</span></label>
+    <label class="chk"><input type="checkbox" data-k="c2"><span>INMP441、MAX98357A、TTP223 的排针都已焊好(或自带排针)</span></label>
+    <label class="chk"><input type="checkbox" data-k="c3"><span>OLED 是 4 针(GND、VCC、SCL、SDA)</span></label>
+    <label class="chk"><input type="checkbox" data-k="c4"><span>红外模块商品页或丝印写明支持 3.3V</span></label>
+    <label class="chk"><input type="checkbox" data-k="c5"><span>电脑装好驱动:插上板子后,Windows「设备管理器 → 端口」里出现 COM 口。没出现就装 CP210x 驱动(搜索 Silicon Labs CP210x),并换一个 Type-C 口(用写着 UART 的那个)再试</span></label>
+  </div>
+</section>
+
+<!-- ======================================================= 1 -->
+<section class="stage" id="s1">
+  <p class="eyebrow">阶段 1</p><h2>声音和屏幕</h2><p class="time">预计 1~2 小时 · 目标:能说话、能听见、屏幕有表情 · 这一阶段不需要写代码</p>
+
+  <h3>1.1 接线</h3>
+  <p>只接麦克风、功放、喇叭、OLED。<b>舵机、红外、触摸现在不要接。</b>功放的 VIN 先接开发板 5V 引脚(此时只有 USB 供电)。</p>
+  <div class="svgwrap"><svg viewBox="0 0 680 592" role="img" aria-label="接线图" class="diagram" style="min-width:640px"><path d="M252 60.0 C357 60.0 357 76 462 76" class="wire w-3v3"/><path d="M252 84.0 C357 84.0 357 116 462 116" class="wire w-mic"/><path d="M252 108.0 C357 108.0 357 156 462 156" class="wire w-mic"/><path d="M252 132.0 C357 132.0 357 196 462 196" class="wire w-mic"/><path d="M252 156.0 C357 156.0 357 476 462 476" class="wire w-gnd"/><path d="M252 180.0 C357 180.0 357 476 462 476" class="wire w-gnd"/><path d="M252 260.0 C357 260.0 357 236 462 236" class="wire w-amp"/><path d="M252 284.0 C357 284.0 357 276 462 276" class="wire w-amp"/><path d="M252 308.0 C357 308.0 357 316 462 316" class="wire w-amp"/><path d="M252 332.0 C357 332.0 357 436 462 436" class="wire w-5v"/><path d="M252 356.0 C357 356.0 357 476 462 476" class="wire w-gnd"/><path d="M252 484.0 C357 484.0 357 76 462 76" class="wire w-3v3"/><path d="M252 508.0 C357 508.0 357 356 462 356" class="wire w-oled"/><path d="M252 532.0 C357 532.0 357 396 462 396" class="wire w-oled"/><path d="M252 556.0 C357 556.0 357 476 462 476" class="wire w-gnd"/><rect x="16" y="16" width="236" height="184" rx="8" class="box"/><rect x="16" y="16" width="236" height="28" rx="8" class="hd hd-mic"/><rect x="16" y="32" width="236" height="12" class="hd hd-mic"/><text x="28" y="35" class="t-hd">INMP441 麦克风</text><text x="28" y="64.0" class="t-pin">VDD</text><text x="238" y="64.0" class="t-to" text-anchor="end">→ 3V3</text><text x="28" y="88.0" class="t-pin">WS</text><text x="238" y="88.0" class="t-to" text-anchor="end">→ GPIO4</text><text x="28" y="112.0" class="t-pin">SCK</text><text x="238" y="112.0" class="t-to" text-anchor="end">→ GPIO5</text><text x="28" y="136.0" class="t-pin">SD</text><text x="238" y="136.0" class="t-to" text-anchor="end">→ GPIO6</text><text x="28" y="160.0" class="t-pin">L/R</text><text x="238" y="160.0" class="t-to" text-anchor="end">→ GND</text><text x="28" y="184.0" class="t-pin">GND</text><text x="238" y="184.0" class="t-to" text-anchor="end">→ GND</text><rect x="16" y="216" width="236" height="208" rx="8" class="box"/><rect x="16" y="216" width="236" height="28" rx="8" class="hd hd-amp"/><rect x="16" y="232" width="236" height="12" class="hd hd-amp"/><text x="28" y="235" class="t-hd">MAX98357A 功放</text><text x="28" y="264.0" class="t-pin">DIN</text><text x="238" y="264.0" class="t-to" text-anchor="end">→ GPIO7</text><text x="28" y="288.0" class="t-pin">BCLK</text><text x="238" y="288.0" class="t-to" text-anchor="end">→ GPIO15</text><text x="28" y="312.0" class="t-pin">LRC</text><text x="238" y="312.0" class="t-to" text-anchor="end">→ GPIO16</text><text x="28" y="336.0" class="t-pin">VIN</text><text x="238" y="336.0" class="t-to" text-anchor="end">→ 5V</text><text x="28" y="360.0" class="t-pin">GND</text><text x="238" y="360.0" class="t-to" text-anchor="end">→ GND</text><text x="28" y="384.0" class="t-pin">GAIN / SD</text><text x="238" y="384.0" class="t-note" text-anchor="end">不接,悬空</text><text x="28" y="408.0" class="t-pin">输出 + / −</text><text x="238" y="408.0" class="t-note" text-anchor="end">只接喇叭两根线</text><rect x="16" y="440" width="236" height="136" rx="8" class="box"/><rect x="16" y="440" width="236" height="28" rx="8" class="hd hd-oled"/><rect x="16" y="456" width="236" height="12" class="hd hd-oled"/><text x="28" y="459" class="t-hd">SSD1306 OLED (4 针)</text><text x="28" y="488.0" class="t-pin">VCC</text><text x="238" y="488.0" class="t-to" text-anchor="end">→ 3V3</text><text x="28" y="512.0" class="t-pin">SDA</text><text x="238" y="512.0" class="t-to" text-anchor="end">→ GPIO41</text><text x="28" y="536.0" class="t-pin">SCL</text><text x="238" y="536.0" class="t-to" text-anchor="end">→ GPIO42</text><text x="28" y="560.0" class="t-pin">GND</text><text x="238" y="560.0" class="t-to" text-anchor="end">→ GND</text><rect x="462" y="16" width="200" height="484" rx="8" class="box"/><rect x="462" y="16" width="200" height="28" rx="8" class="hd hd-esp"/><rect x="462" y="32" width="200" height="12" class="hd hd-esp"/><text x="474" y="35" class="t-hd">ESP32-S3 开发板</text><text x="480" y="81" class="t-esp">3V3</text><text x="480" y="121" class="t-esp">GPIO4</text><text x="480" y="161" class="t-esp">GPIO5</text><text x="480" y="201" class="t-esp">GPIO6</text><text x="480" y="241" class="t-esp">GPIO7</text><text x="480" y="281" class="t-esp">GPIO15</text><text x="480" y="321" class="t-esp">GPIO16</text><text x="480" y="361" class="t-esp">GPIO41</text><text x="480" y="401" class="t-esp">GPIO42</text><text x="480" y="441" class="t-esp">5V</text><text x="480" y="481" class="t-esp">GND</text><circle cx="252" cy="60.0" r="4" class="dot w-3v3"/><circle cx="252" cy="84.0" r="4" class="dot w-mic"/><circle cx="252" cy="108.0" r="4" class="dot w-mic"/><circle cx="252" cy="132.0" r="4" class="dot w-mic"/><circle cx="252" cy="156.0" r="4" class="dot w-gnd"/><circle cx="252" cy="180.0" r="4" class="dot w-gnd"/><circle cx="252" cy="260.0" r="4" class="dot w-amp"/><circle cx="252" cy="284.0" r="4" class="dot w-amp"/><circle cx="252" cy="308.0" r="4" class="dot w-amp"/><circle cx="252" cy="332.0" r="4" class="dot w-5v"/><circle cx="252" cy="356.0" r="4" class="dot w-gnd"/><circle cx="252" cy="484.0" r="4" class="dot w-3v3"/><circle cx="252" cy="508.0" r="4" class="dot w-oled"/><circle cx="252" cy="532.0" r="4" class="dot w-oled"/><circle cx="252" cy="556.0" r="4" class="dot w-gnd"/><circle cx="462" cy="76" r="5" class="dot w-3v3"/><circle cx="462" cy="116" r="5" class="dot w-esp"/><circle cx="462" cy="156" r="5" class="dot w-esp"/><circle cx="462" cy="196" r="5" class="dot w-esp"/><circle cx="462" cy="236" r="5" class="dot w-esp"/><circle cx="462" cy="276" r="5" class="dot w-esp"/><circle cx="462" cy="316" r="5" class="dot w-esp"/><circle cx="462" cy="356" r="5" class="dot w-esp"/><circle cx="462" cy="396" r="5" class="dot w-esp"/><circle cx="462" cy="436" r="5" class="dot w-5v"/><circle cx="462" cy="476" r="5" class="dot w-gnd"/></svg></div>
+  <div class="legend"><span><i style="background:var(--c3v3)"></i>3V3 线(3.3V 电)</span><span><i style="background:var(--c5v)"></i>5V 线(5V 电)</span><span><i style="background:var(--cgnd)"></i>GND 线(地线)</span><span><i style="background:var(--mic)"></i>信号线(颜色随模块)</span></div>
+  <div class="tw"><table><thead><tr><th>模块</th><th>模块引脚</th><th>接到开发板</th><th>备注</th></tr></thead><tbody><tr><td>INMP441 麦克风</td><td>VDD</td><td><span class="v33">3V3</span></td><td>不能接 5V</td></tr><tr><td>INMP441 麦克风</td><td>GND</td><td>GND</td><td></td></tr><tr><td>INMP441 麦克风</td><td>WS</td><td><code>GPIO4</code></td><td></td></tr><tr><td>INMP441 麦克风</td><td>SCK</td><td><code>GPIO5</code></td><td></td></tr><tr><td>INMP441 麦克风</td><td>SD</td><td><code>GPIO6</code></td><td></td></tr><tr><td>INMP441 麦克风</td><td>L/R</td><td>GND</td><td><b>必须接地,不能悬空</b></td></tr><tr><td>MAX98357A 功放</td><td>VIN</td><td><span class="v5">5V</span></td><td>板子上写 5V 或 VIN 的那个脚</td></tr><tr><td>MAX98357A 功放</td><td>GND</td><td>GND</td><td></td></tr><tr><td>MAX98357A 功放</td><td>DIN</td><td><code>GPIO7</code></td><td></td></tr><tr><td>MAX98357A 功放</td><td>BCLK</td><td><code>GPIO15</code></td><td></td></tr><tr><td>MAX98357A 功放</td><td>LRC</td><td><code>GPIO16</code></td><td></td></tr><tr><td>MAX98357A 功放</td><td>GAIN、SD</td><td>不接</td><td>悬空即可</td></tr><tr><td>MAX98357A 功放</td><td>输出 +、−</td><td>喇叭两根线</td><td><b>喇叭的 − 不能接 GND</b></td></tr><tr><td>OLED</td><td>VCC</td><td><span class="v33">3V3</span></td><td>不能接 5V</td></tr><tr><td>OLED</td><td>GND</td><td>GND</td><td></td></tr><tr><td>OLED</td><td>SDA</td><td><code>GPIO41</code></td><td></td></tr><tr><td>OLED</td><td>SCL</td><td><code>GPIO42</code></td><td></td></tr></tbody></table></div>
+  <div class="callout info"><b class="t">3V3 和 GND 引脚不够插怎么办</b>
+    用面包板的一整排孔当「分线板」:开发板的一个 3V3 接到面包板一排,三个模块的 3V3 都插进这一排。GND 同理,单独用另一排。</div>
+
+  <div class="check"><h4>✅ 检查点 1.1:接线检查(上电前)</h4>
+    <label class="chk"><input type="checkbox" data-k="c6"><span>按「读线法」逐根念过,和上面的表一致</span></label>
+    <label class="chk"><input type="checkbox" data-k="c7"><span>麦克风 VDD、OLED VCC 都在 3V3 上,没有一根在 5V 上</span></label>
+    <label class="chk"><input type="checkbox" data-k="c8"><span>麦克风的 L/R 接了 GND</span></label>
+    <label class="chk"><input type="checkbox" data-k="c9"><span>喇叭只接在功放的 + 和 − 上,没有碰到 GND</span></label>
+    <label class="chk"><input type="checkbox" data-k="c10"><span>3V3 的线和 5V 的线没有互相碰到</span></label>
+  </div>
+
+  <h3>1.2 第一次上电</h3>
+  <ol class="steps">
+    <li>用数据线接电脑,按 0.6 的「上电三步法」检查。</li>
+    <li>此时还没有固件,屏幕不亮、不出声是<b>正常的</b>。</li>
+    <li>确认电脑出现 COM 口(设备管理器 → 端口)。</li>
+  </ol>
+  <div class="check"><h4>✅ 检查点 1.2</h4>
+    <label class="chk"><input type="checkbox" data-k="c11"><span>10 秒内无烟、无焦味、芯片不烫手</span></label>
+    <label class="chk"><input type="checkbox" data-k="c12"><span>电脑出现了 COM 口</span></label>
+  </div>
+
+  <h3>1.3 刷入官方固件</h3>
+  <ol class="steps">
+    <li>打开小智仓库 <code>github.com/78/xiaozhi-esp32</code> 的 Releases 页面。</li>
+    <li>下载面包板 Wi-Fi 版固件:OLED 是 128×64 的选带 <code>bread-compact-wifi-128x64</code> 的文件;是 128×32 的选 <code>bread-compact-wifi</code>。<b>选错会花屏或只显示一半。</b></li>
+    <li>按仓库 README 里的「新手烧录固件教程」刷入(它是图文教程,以它为准)。固件文件是压缩包里的 <code>merged-binary.bin</code>,烧录地址 <code>0x0</code>。</li>
+    <li>刷完按一下板子上的 RST 键重启。</li>
+  </ol>
+
+  <h3>1.4 连网和绑定</h3>
+  <ol class="steps">
+    <li>屏幕会提示连接以 <code>Xiaozhi</code> 开头的 Wi-Fi 热点。用手机连上它,按提示填入<b>家里的 2.4G Wi-Fi</b>(不支持 5G)。</li>
+    <li>联网后屏幕显示 6 位验证码。到 <code>xiaozhi.me</code> 控制台添加设备,输入验证码。</li>
+  </ol>
+
+  <div class="check"><h4>✅ 检查点 1.3:阶段 1 通过</h4><label class="chk"><input type="checkbox" data-k="c13"><span>说「你好小智」,机器人被唤醒(屏幕有变化)</span></label><label class="chk"><input type="checkbox" data-k="c14"><span>它能用声音回答你的问题</span></label><label class="chk"><input type="checkbox" data-k="c15"><span>OLED 显示表情和文字,方向正确、没有花屏</span></label><label class="chk"><input type="checkbox" data-k="c16"><span>开机后 10 分钟内没有自己重启</span></label></div>
+
+  <h3>阶段 1 常见问题</h3>
+  <div class="tw"><table><thead><tr><th>现象</th><th>怎么办</th></tr></thead><tbody><tr><td>屏幕上下颠倒</td><td>先记下来,阶段 2 的固件里改一项参数即可,不用改线</td></tr><tr><td>屏幕只显示一半或花屏</td><td>固件选错了,换成对应屏幕尺寸的版本</td></tr><tr><td>屏幕完全不亮</td><td>检查 OLED 的 VCC/GND/SDA/SCL 有没有接对、有没有松动;SDA 接 GPIO41、SCL 接 GPIO42</td></tr><tr><td>唤不醒,或总听不清</td><td>麦克风小孔有没有被挡住;L/R 有没有接 GND;麦克风离喇叭是否太近;说话离近一点</td></tr><tr><td>完全没声音</td><td>核对 DIN→GPIO7、BCLK→GPIO15、LRC→GPIO16 和功放 VIN→5V;喇叭线要接在 + 和 −</td></tr><tr><td>声音破、或播放时重启</td><td>先把音量调小;还不行把功放 VIN 改接充电头的 5V(记得共地)</td></tr></tbody></table></div>
+</section>
+
+<!-- ======================================================= 2 -->
+<section class="stage" id="s2">
+  <p class="eyebrow">阶段 2</p><h2>换成纸壳机器人固件</h2><p class="time">预计 30 分钟 · 硬件不变,只换固件 <span class="pill todo">需要先编译</span></p>
+
+  <div class="callout warn"><b class="t">这一步现在还没就绪</b>
+    我们的板型代码(<code>cardboard-bot-s3</code>)需要编译成固件文件才能刷。我已经核对过:补丁能直接打到最新的上游代码上,接口也对得上。
+    但我<b>还没有在真实的 ESP-IDF 工具链里编译过它</b>,所以第一次编译可能报错。
+    <br><b>接下来我会做两件事:</b>① 在你的 GitHub 仓库里配好云端自动编译(你点一下按钮就能下载固件,不用在电脑上装开发环境);② 编译前先改 2 处小问题(见下)。
+    <br>在此之前,你可以先停在阶段 1,机器人已经能对话了。</div>
+
+  <h3>编译前要修的两处</h3>
+  <div class="tw"><table><thead><tr><th>问题</th><th>修法</th></tr></thead><tbody><tr><td>红外追踪方向和语音转头方向默认相反</td><td><code>TRACK_LEFT_SIGN</code> 默认改为 <code>(-1)</code>,之后只用一个开关 <code>SERVO_PAN_REVERSE</code> 校准方向</td></tr><tr><td>说「看左边」约 8 秒后头会自己转回中间</td><td>语音转头后的保持时间改为 30 秒</td></tr></tbody></table></div>
+
+  <h3>刷入步骤(拿到固件后)</h3>
+  <ol class="steps">
+    <li>从云端编译结果里下载 <code>merged-binary.bin</code>。</li>
+    <li>用阶段 1 同样的方法刷到地址 <code>0x0</code>。</li>
+    <li>重启后观察。</li>
+  </ol>
+  <details><summary>想在自己电脑上编译(进阶,可跳过)</summary>
+    <p>需要 ESP-IDF v6.0.1 或以上(推荐 v6.1,5.x 不行)。</p>
+<pre>git clone https://github.com/78/xiaozhi-esp32
+cd xiaozhi-esp32
+# 把 cardboard-bot-s3 文件夹复制到 main/boards/ 下
+# 把 register-board.patch 放到仓库根目录
+git apply register-board.patch
+python scripts/build.py cardboard-bot-s3
+idf.py -p COM口 flash monitor</pre>
+    <p>报错就把报错原文发给我。</p>
+  </details>
+  <div class="check"><h4>✅ 检查点 2:阶段 2 通过</h4><label class="chk"><input type="checkbox" data-k="c17"><span>刷入后能唤醒、能对话,和阶段 1 一样</span></label><label class="chk"><input type="checkbox" data-k="c18"><span>OLED 方向正确(上下颠倒的话,按附录改 <code>DISPLAY_MIRROR_X/Y</code>)</span></label><label class="chk"><input type="checkbox" data-k="c19"><span>(有串口日志时)日志里没有 <code>abort</code>、<code>panic</code>、<code>Guru Meditation</code></span></label></div>
+</section>
+
+<!-- ======================================================= 3 -->
+<section class="stage" id="s3">
+  <p class="eyebrow">阶段 3</p><h2>触摸和红外</h2><p class="time">预计 1 小时 · 三个模块都只用 3V3 供电</p>
+
+  <h3>3.1 先单独测每个模块(不接信号线)</h3>
+  <p>模块上自带指示灯,不用万用表就能知道模块好不好用。<b>此时只接电源脚和地脚。</b></p>
+  <ol class="steps">
+    <li><b>断电。</b>把一个红外模块的 VCC 接开发板 3V3,GND 接 GND,信号脚先不接。</li>
+    <li>插 USB 上电。模块上的电源灯会亮。</li>
+    <li>用手或一张白纸在模块前方 5 厘米左右晃动:<b>信号灯应该亮/灭变化</b>。</li>
+    <li>灯一直亮或一直不亮,就用小螺丝刀慢慢拧模块上的电位器,直到「手挡住灯亮、拿开灯灭」,感应距离大约 5~10 厘米。</li>
+    <li>另一个红外模块同样测一次。</li>
+    <li>触摸模块:接 VCC 和 GND 后,摸一下金属圆片。有指示灯的会亮;没有指示灯的跳过,等接上信号线再测。</li>
+  </ol>
+  <div class="check"><h4>✅ 检查点 3.1</h4>
+    <label class="chk"><input type="checkbox" data-k="c20"><span>左红外:手靠近时信号灯有变化</span></label>
+    <label class="chk"><input type="checkbox" data-k="c21"><span>右红外:手靠近时信号灯有变化</span></label>
+    <label class="chk"><input type="checkbox" data-k="c22"><span>两个红外在没有物体时都是「灯灭」(电位器调好了)</span></label>
+  </div>
+
+  <h3>3.2 接信号线</h3>
+  <p><b>断电后接线。</b>阶段 1 的线全部保持不动,新增下面这些:</p>
+  <div class="svgwrap"><svg viewBox="0 0 680 400" role="img" aria-label="接线图" class="diagram" style="min-width:640px"><path d="M252 60.0 C357 60.0 357 76 462 76" class="wire w-3v3"/><path d="M252 84.0 C357 84.0 357 196 462 196" class="wire w-touch"/><path d="M252 108.0 C357 108.0 357 236 462 236" class="wire w-gnd"/><path d="M252 188.0 C357 188.0 357 76 462 76" class="wire w-3v3"/><path d="M252 212.0 C357 212.0 357 116 462 116" class="wire w-ir"/><path d="M252 236.0 C357 236.0 357 236 462 236" class="wire w-gnd"/><path d="M252 316.0 C357 316.0 357 76 462 76" class="wire w-3v3"/><path d="M252 340.0 C357 340.0 357 156 462 156" class="wire w-ir"/><path d="M252 364.0 C357 364.0 357 236 462 236" class="wire w-gnd"/><rect x="16" y="16" width="236" height="112" rx="8" class="box"/><rect x="16" y="16" width="236" height="28" rx="8" class="hd hd-touch"/><rect x="16" y="32" width="236" height="12" class="hd hd-touch"/><text x="28" y="35" class="t-hd">TTP223 触摸</text><text x="28" y="64.0" class="t-pin">VCC</text><text x="238" y="64.0" class="t-to" text-anchor="end">→ 3V3</text><text x="28" y="88.0" class="t-pin">I/O (或 OUT/SIG)</text><text x="238" y="88.0" class="t-to" text-anchor="end">→ GPIO47</text><text x="28" y="112.0" class="t-pin">GND</text><text x="238" y="112.0" class="t-to" text-anchor="end">→ GND</text><rect x="16" y="144" width="236" height="112" rx="8" class="box"/><rect x="16" y="144" width="236" height="28" rx="8" class="hd hd-ir"/><rect x="16" y="160" width="236" height="12" class="hd hd-ir"/><text x="28" y="163" class="t-hd">左红外模块</text><text x="28" y="192.0" class="t-pin">VCC</text><text x="238" y="192.0" class="t-to" text-anchor="end">→ 3V3</text><text x="28" y="216.0" class="t-pin">OUT (或 DO)</text><text x="238" y="216.0" class="t-to" text-anchor="end">→ GPIO9</text><text x="28" y="240.0" class="t-pin">GND</text><text x="238" y="240.0" class="t-to" text-anchor="end">→ GND</text><rect x="16" y="272" width="236" height="112" rx="8" class="box"/><rect x="16" y="272" width="236" height="28" rx="8" class="hd hd-ir"/><rect x="16" y="288" width="236" height="12" class="hd hd-ir"/><text x="28" y="291" class="t-hd">右红外模块</text><text x="28" y="320.0" class="t-pin">VCC</text><text x="238" y="320.0" class="t-to" text-anchor="end">→ 3V3</text><text x="28" y="344.0" class="t-pin">OUT (或 DO)</text><text x="238" y="344.0" class="t-to" text-anchor="end">→ GPIO10</text><text x="28" y="368.0" class="t-pin">GND</text><text x="238" y="368.0" class="t-to" text-anchor="end">→ GND</text><rect x="462" y="16" width="200" height="244" rx="8" class="box"/><rect x="462" y="16" width="200" height="28" rx="8" class="hd hd-esp"/><rect x="462" y="32" width="200" height="12" class="hd hd-esp"/><text x="474" y="35" class="t-hd">ESP32-S3 开发板</text><text x="480" y="81" class="t-esp">3V3</text><text x="480" y="121" class="t-esp">GPIO9</text><text x="480" y="161" class="t-esp">GPIO10</text><text x="480" y="201" class="t-esp">GPIO47</text><text x="480" y="241" class="t-esp">GND</text><circle cx="252" cy="60.0" r="4" class="dot w-3v3"/><circle cx="252" cy="84.0" r="4" class="dot w-touch"/><circle cx="252" cy="108.0" r="4" class="dot w-gnd"/><circle cx="252" cy="188.0" r="4" class="dot w-3v3"/><circle cx="252" cy="212.0" r="4" class="dot w-ir"/><circle cx="252" cy="236.0" r="4" class="dot w-gnd"/><circle cx="252" cy="316.0" r="4" class="dot w-3v3"/><circle cx="252" cy="340.0" r="4" class="dot w-ir"/><circle cx="252" cy="364.0" r="4" class="dot w-gnd"/><circle cx="462" cy="76" r="5" class="dot w-3v3"/><circle cx="462" cy="116" r="5" class="dot w-esp"/><circle cx="462" cy="156" r="5" class="dot w-esp"/><circle cx="462" cy="196" r="5" class="dot w-esp"/><circle cx="462" cy="236" r="5" class="dot w-gnd"/></svg></div>
+  <div class="legend"><span><i style="background:var(--c3v3)"></i>3V3 线(3.3V 电)</span><span><i style="background:var(--c5v)"></i>5V 线(5V 电)</span><span><i style="background:var(--cgnd)"></i>GND 线(地线)</span><span><i style="background:var(--mic)"></i>信号线(颜色随模块)</span></div>
+  <div class="tw"><table><thead><tr><th>模块</th><th>模块引脚</th><th>接到开发板</th><th>备注</th></tr></thead><tbody><tr><td>TTP223 触摸</td><td>VCC</td><td><span class="v33">3V3</span></td><td></td></tr><tr><td>TTP223 触摸</td><td>GND</td><td>GND</td><td></td></tr><tr><td>TTP223 触摸</td><td>I/O(或 OUT、SIG)</td><td><code>GPIO47</code></td><td></td></tr><tr><td>左红外</td><td>VCC</td><td><span class="v33">3V3</span></td><td>以机器人自己的视角为左</td></tr><tr><td>左红外</td><td>GND</td><td>GND</td><td></td></tr><tr><td>左红外</td><td>OUT(或 DO)</td><td><code>GPIO9</code></td><td></td></tr><tr><td>右红外</td><td>VCC</td><td><span class="v33">3V3</span></td><td></td></tr><tr><td>右红外</td><td>GND</td><td>GND</td><td></td></tr><tr><td>右红外</td><td>OUT(或 DO)</td><td><code>GPIO10</code></td><td></td></tr></tbody></table></div>
+  <div class="check"><h4>✅ 检查点 3.2:接线检查(上电前)</h4><label class="chk"><input type="checkbox" data-k="c23"><span>三个新模块的 VCC 都在 3V3 上,没有一根在 5V 上</span></label><label class="chk"><input type="checkbox" data-k="c24"><span>红外信号线分别接 GPIO9(左)、GPIO10(右),没有接反或接到别的脚</span></label><label class="chk"><input type="checkbox" data-k="c25"><span>触摸信号线接 GPIO47</span></label><label class="chk"><input type="checkbox" data-k="c26"><span>阶段 1 的线没有被碰松</span></label></div>
+
+  <h3>3.3 上电测试</h3>
+  <ol class="steps">
+    <li>按「上电三步法」检查,再正常使用。</li>
+    <li><b>轻触</b>触摸片:机器人表情变化,并用声音回应。</li>
+    <li><b>长按</b>约 2 秒:开始或结束对话。</li>
+    <li>用手挡住<b>左</b>红外,问:「你的红外看到东西了吗?」它应该回答左侧。右侧同样测一次。</li>
+  </ol>
+  <div class="check"><h4>✅ 检查点 3.3:阶段 3 通过</h4><label class="chk"><input type="checkbox" data-k="c27"><span>轻触:表情变化,有回应</span></label><label class="chk"><input type="checkbox" data-k="c28"><span>长按:能开始/结束对话</span></label><label class="chk"><input type="checkbox" data-k="c29"><span>挡左边,机器人说左;挡右边,机器人说右</span></label></div>
+  <div class="tw"><table><thead><tr><th>现象</th><th>怎么办</th></tr></thead><tbody><tr><td>触摸没反应</td><td>确认接的是 GPIO47、VCC 在 3V3;若仍不行,固件里把 <code>TOUCH_ACTIVE_HIGH</code> 改为 <code>false</code></td></tr><tr><td>红外一直触发或从不触发</td><td>先调模块上的电位器;仍不对,固件里把 <code>IR_ACTIVE_LEVEL</code> 改为 <code>1</code></td></tr><tr><td>说的左右和实际相反</td><td>左右红外的信号线接反了,互换 GPIO9 和 GPIO10 上的线即可</td></tr></tbody></table></div>
+</section>
+
+<!-- ======================================================= 4 -->
+<section class="stage" id="s4">
+  <p class="eyebrow">阶段 4</p><h2>舵机</h2><p class="time">预计 1~2 小时 · 这一阶段才会用到第二路电源(充电头)</p>
+
+  <div class="callout rule"><b class="t">本阶段的电源规则</b>
+    ① 开发板只靠 <b>USB</b> 供电。<br>
+    ② 舵机只靠 <b>充电头 5V</b> 供电。<br>
+    ③ <b>两路 5V 不要接在一起。</b>充电头的 +5V 绝不能接到开发板的 5V 或 3V3 引脚,只接舵机红线。<br>
+    ④ 两边的 <b>GND 必须相连</b>(下图灰线)。</div>
+
+  <h3>4.1 准备</h3>
+  <ol class="steps">
+    <li>舵机先<b>从头部结构上拆下来</b>,摇臂先不装,放在桌上测试。</li>
+    <li>充电头 + 转接线端子板:端子板上标着 5V(或 +)和 GND(或 −),用杜邦线引出。</li>
+    <li>先别插充电头。</li>
+  </ol>
+
+  <h3>4.2 接线</h3>
+  <div class="svgwrap"><svg viewBox="0 0 680 344" role="img" aria-label="舵机接线图" class="diagram" style="min-width:640px"><path d="M206 72 C250 72 250 66 300 66" class="wire w-5v"/><path d="M206 72 C240 72 240 202 300 202" class="wire w-5v"/><path d="M206 104 C262 104 262 92 300 92" class="wire w-gnd"/><path d="M206 104 C252 104 252 228 300 228" class="wire w-gnd"/><path d="M206 104 C220 104 224 300 260 300 L520 300 C540 300 540 240 560 240" class="wire w-gnd"/><path d="M470 118 C520 118 520 76 560 76" class="wire w-servo"/><path d="M470 254 C520 254 520 166 560 166" class="wire w-servo"/><rect x="16" y="20" width="190" height="104" rx="8" class="box"/><rect x="16" y="20" width="190" height="28" rx="8" class="hd hd-chg"/><rect x="16" y="36" width="190" height="12" class="hd hd-chg"/><text x="28" y="39" class="t-hd">5V 充电头 + 转接板</text><text x="28" y="76" class="t-pin">+5V</text><text x="28" y="108" class="t-pin">GND</text><rect x="300" y="20" width="170" height="116" rx="8" class="box"/><rect x="300" y="20" width="170" height="28" rx="8" class="hd hd-servo"/><rect x="300" y="36" width="170" height="12" class="hd hd-servo"/><text x="312" y="39" class="t-hd">水平舵机</text><text x="312" y="70" class="t-pin">红线</text><text x="312" y="96" class="t-pin">棕线</text><text x="312" y="122" class="t-pin">橙/黄线</text><rect x="300" y="156" width="170" height="116" rx="8" class="box"/><rect x="300" y="156" width="170" height="28" rx="8" class="hd hd-servo"/><rect x="300" y="172" width="170" height="12" class="hd hd-servo"/><text x="312" y="175" class="t-hd">俯仰舵机</text><text x="312" y="206" class="t-pin">红线</text><text x="312" y="232" class="t-pin">棕线</text><text x="312" y="258" class="t-pin">橙/黄线</text><rect x="560" y="20" width="110" height="252" rx="8" class="box"/><rect x="560" y="20" width="110" height="28" rx="8" class="hd hd-esp"/><rect x="560" y="36" width="110" height="12" class="hd hd-esp"/><text x="570" y="39" class="t-hd">S3 开发板</text><text x="590" y="80" class="t-esp">GPIO17</text><text x="590" y="170" class="t-esp">GPIO18</text><text x="590" y="244" class="t-esp">GND</text><text x="16" y="330" class="t-note" text-anchor="start">灰线 = 共地线:充电头 GND 必须同时接到开发板 GND(最容易漏掉的一根)</text><circle cx="206" cy="72" r="4" class="dot w-5v"/><circle cx="206" cy="104" r="4" class="dot w-gnd"/><circle cx="300" cy="66" r="4" class="dot w-5v"/><circle cx="300" cy="202" r="4" class="dot w-5v"/><circle cx="300" cy="92" r="4" class="dot w-gnd"/><circle cx="300" cy="228" r="4" class="dot w-gnd"/><circle cx="470" cy="118" r="4" class="dot w-servo"/><circle cx="470" cy="254" r="4" class="dot w-servo"/><circle cx="560" cy="76" r="4" class="dot w-servo"/><circle cx="560" cy="166" r="4" class="dot w-servo"/><circle cx="560" cy="240" r="4" class="dot w-gnd"/></svg></div>
+  <div class="legend"><span><i style="background:var(--c3v3)"></i>3V3 线(3.3V 电)</span><span><i style="background:var(--c5v)"></i>5V 线(5V 电)</span><span><i style="background:var(--cgnd)"></i>GND 线(地线)</span><span><i style="background:var(--mic)"></i>信号线(颜色随模块)</span></div>
+  <div class="tw"><table><thead><tr><th>从</th><th>到</th><th>备注</th></tr></thead><tbody><tr><td>充电头 +5V</td><td>水平舵机红线、俯仰舵机红线</td><td>红线是电源</td></tr><tr><td>充电头 GND</td><td>两个舵机棕线(有的是黑线)</td><td>棕/黑是地</td></tr><tr><td>充电头 GND</td><td><b>开发板任意 GND</b></td><td>共地线,必须有</td></tr><tr><td>水平舵机橙/黄线</td><td><code>GPIO17</code></td><td>信号线</td></tr><tr><td>俯仰舵机橙/黄线</td><td><code>GPIO18</code></td><td>信号线</td></tr></tbody></table></div>
+  <p>舵机三根线颜色:棕(或黑)= 地,红 = 电源,橙(或黄)= 信号。<b>插头方向反了会烧舵机</b>,按线色对准。</p>
+  <div class="check"><h4>✅ 检查点 4.1:接线检查(上电前)</h4><label class="chk"><input type="checkbox" data-k="c30"><span>舵机红线只接到充电头 +5V,没有接开发板的任何引脚</span></label><label class="chk"><input type="checkbox" data-k="c31"><span>充电头 GND 和开发板 GND 之间有一根线</span></label><label class="chk"><input type="checkbox" data-k="c32"><span>舵机信号线分别接 GPIO17、GPIO18</span></label><label class="chk"><input type="checkbox" data-k="c33"><span>充电头现在<b>没有</b>插电</span></label></div>
+
+  <h3>4.3 上电顺序(很重要)</h3>
+  <ol class="steps">
+    <li><b>先插 USB</b>,等小智启动、OLED 亮起。</li>
+    <li><b>再插充电头。</b>舵机会「咔」一声转到中位(90°),这是正常的。</li>
+    <li>断电顺序相反:先拔充电头,再拔 USB。</li>
+  </ol>
+  <p>这样舵机一通电,开发板已经在发送「回中位」的指令,不会乱转。</p>
+
+  <h3>4.4 装摇臂</h3>
+  <ol class="steps">
+    <li>舵机在中位时,把摇臂/舵盘装上,让头朝向<b>正前方</b>、不仰不俯。</li>
+    <li>如果差一点,断电后拔下摇臂,转一个齿再装,或者用后面的「中位参数」微调。</li>
+    <li>装进头部结构后,用手轻轻转一下头,确认转动范围内没有东西卡住。</li>
+  </ol>
+
+  <h3>4.5 测试</h3>
+  <div class="check"><h4>✅ 检查点 4.2:阶段 4 通过</h4><label class="chk"><input type="checkbox" data-k="c34"><span>说「点点头」,头点两下</span></label><label class="chk"><input type="checkbox" data-k="c35"><span>说「摇摇头」,头摇两下</span></label><label class="chk"><input type="checkbox" data-k="c36"><span>说「看左边」,头向<b>机器人的左边</b>转;说「看右边」转向右边</span></label><label class="chk"><input type="checkbox" data-k="c37"><span>说「抬头」抬起、「低头」低下</span></label><label class="chk"><input type="checkbox" data-k="c38"><span>说「看前面」回正</span></label><label class="chk"><input type="checkbox" data-k="c39"><span>手靠近一侧红外,头跟着转过去;两侧都挡住时保持不动</span></label><label class="chk"><input type="checkbox" data-k="c40"><span>空闲时舵机不嗡嗡响、不发烫、不一直抖</span></label></div>
+  <div class="callout rule"><b class="t">遇到这些,立刻断电</b>
+    舵机一直嗡嗡响且不转(卡住了)· 舵机或开发板明显发烫 · 闻到焦味。</div>
+  <div class="tw"><table><thead><tr><th>现象</th><th>怎么办</th></tr></thead><tbody><tr><td>说「看左边」却往右</td><td>固件里 <code>SERVO_PAN_REVERSE</code> 改为 <code>true</code></td></tr><tr><td>说「抬头」却低头</td><td>固件里 <code>SERVO_TILT_REVERSE</code> 改为 <code>true</code></td></tr><tr><td>手在左边头却往右转</td><td>方向已经用上一条校准后,再改 <code>TRACK_LEFT_SIGN</code> 的正负号</td></tr><tr><td>转动角度不够,或顶到结构</td><td>调 <code>SERVO_PAN_MIN/MAX</code>、<code>SERVO_TILT_MIN/MAX</code>(默认水平 40~140°、俯仰 70~115°,是保守值)</td></tr><tr><td>头没有正对前方</td><td>调 <code>SERVO_PAN_CENTER</code>、<code>SERVO_TILT_CENTER</code>,或重新装摇臂</td></tr><tr><td>舵机一动就重启,或喇叭有「噗噗」声</td><td>舵机瞬间电流太大。买一个 1000µF 16V 电解电容并在舵机电源正负极之间(长脚接 5V、短脚接 GND,<b>接反会鼓包</b>);或换更大功率的充电头</td></tr><tr><td>舵机乱抖</td><td>检查共地线;检查充电头是不是 5V</td></tr></tbody></table></div>
+</section>
+
+<!-- ======================================================= 5 -->
+<section class="stage" id="s5">
+  <p class="eyebrow">阶段 5</p><h2>装进纸壳</h2><p class="time">预计 1~2 小时 · 先不脱机,仍然是「一根 USB + 一个充电头」</p>
+
+  <ol class="steps">
+    <li>在麦克风小孔对应的位置扎一个小洞,喇叭位置扎几个出声孔。</li>
+    <li>麦克风尽量<b>远离喇叭和舵机</b>(它们的声音和震动会被麦克风收到)。</li>
+    <li>线头用胶带或热熔胶固定。<b>胶不要糊住麦克风小孔。</b></li>
+    <li>先装好、再理线。每装好一个部件,就测一遍相关功能。</li>
+    <li>全部装好后,把阶段 1、3、4 的所有检查点再测一遍。</li>
+  </ol>
+  <div class="callout info"><b class="t">关于脱机</b>
+    脱机(不接电脑)需要把电源安全地并入开发板的 5V 脚,要加一个二极管防止倒灌。你先不脱机是对的。
+    等整机稳定后再说,我会给你一份脱机方案。</div>
+  <div class="check"><h4>✅ 检查点 5:整机验收</h4><label class="chk"><input type="checkbox" data-k="c41"><span>装进纸壳后,唤醒和对话依然正常</span></label><label class="chk"><input type="checkbox" data-k="c42"><span>舵机转动时,喇叭没有明显杂音,也不重启</span></label><label class="chk"><input type="checkbox" data-k="c43"><span>连续运行 30 分钟,没有发烫、没有重启</span></label></div>
+
+  <h3>日常怎么用</h3>
+  <p>先说「你好小智」唤醒,然后用日常说话的方式讲,不需要固定句式:</p>
+  <div class="tw"><table><thead><tr><th>你说</th><th>机器人做</th></tr></thead><tbody><tr><td>看左边 / 看右边 / 往左转一点</td><td>水平转头,范围为中位左右各 50°</td></tr><tr><td>抬头 / 低头</td><td>俯仰转动,低头 20° 到抬头 25°</td></tr><tr><td>点点头 / 摇摇头</td><td>做两次点头或摇头动作</td></tr><tr><td>看前面 / 回正</td><td>回到中位</td></tr><tr><td>打开追踪 / 关闭追踪</td><td>开关红外自动追踪,开机默认打开</td></tr><tr><td>声音大一点 / 音量调到 50</td><td>调音量</td></tr><tr><td>轻触头顶</td><td>点头并回应</td></tr><tr><td>长按头顶约 2 秒</td><td>开始或结束对话</td></tr></tbody></table></div>
+</section>
+
+<!-- ======================================================= ref -->
+<section class="stage" id="ref" style="border-bottom:none">
+  <p class="eyebrow">附录</p><h2>速查</h2>
+
+  <h3>A. 13 根信号线总表</h3>
+  <div class="tw"><table><thead><tr><th>模块</th><th>模块引脚</th><th>开发板</th><th>阶段</th></tr></thead><tbody><tr><td>INMP441 麦克风</td><td>WS</td><td>GPIO4</td><td>阶段 1</td></tr><tr><td>INMP441 麦克风</td><td>SCK</td><td>GPIO5</td><td>阶段 1</td></tr><tr><td>INMP441 麦克风</td><td>SD</td><td>GPIO6</td><td>阶段 1</td></tr><tr><td>MAX98357A 功放</td><td>DIN</td><td>GPIO7</td><td>阶段 1</td></tr><tr><td>MAX98357A 功放</td><td>BCLK</td><td>GPIO15</td><td>阶段 1</td></tr><tr><td>MAX98357A 功放</td><td>LRC</td><td>GPIO16</td><td>阶段 1</td></tr><tr><td>OLED</td><td>SDA</td><td>GPIO41</td><td>阶段 1</td></tr><tr><td>OLED</td><td>SCL</td><td>GPIO42</td><td>阶段 1</td></tr><tr><td>TTP223 触摸</td><td>I/O</td><td>GPIO47</td><td>阶段 3</td></tr><tr><td>左红外</td><td>OUT</td><td>GPIO9</td><td>阶段 3</td></tr><tr><td>右红外</td><td>OUT</td><td>GPIO10</td><td>阶段 3</td></tr><tr><td>水平舵机</td><td>橙/黄线</td><td>GPIO17</td><td>阶段 4</td></tr><tr><td>俯仰舵机</td><td>橙/黄线</td><td>GPIO18</td><td>阶段 4</td></tr></tbody></table></div>
+  <p>另外还有电源线和地线:麦克风、OLED、触摸、红外的电源接 <span class="v33">3V3</span>;功放 VIN 接开发板 <span class="v5">5V</span>;舵机红线接充电头 <span class="v5">+5V</span>;所有 GND 相连。麦克风 L/R 接 GND。</p>
+
+  <h3>B. 这些引脚不要接任何东西</h3>
+  <p><code>GPIO0</code>、<code>3</code>、<code>45</code>、<code>46</code>(启动相关)· <code>GPIO19</code>、<code>20</code>(USB)· <code>GPIO35</code>、<code>36</code>、<code>37</code>(N16R8 的内存占用)· <code>GPIO43</code>、<code>44</code>(串口日志)· <code>GPIO48</code>(板载灯)</p>
+
+  <h3>C. 固件参数(<code>main/boards/cardboard-bot-s3/config.h</code>)</h3>
+  <p>改完需要重新编译、重新刷入,<b>不需要动接线</b>。</p>
+  <div class="tw"><table><thead><tr><th>现象</th><th>参数</th></tr></thead><tbody><tr><td>OLED 画面上下颠倒</td><td><code>DISPLAY_MIRROR_X</code> 和 <code>DISPLAY_MIRROR_Y</code> 都改为 <code>false</code></td></tr><tr><td>OLED 只显示一半或花屏(屏是 128×32)</td><td><code>config.json</code> 里的 <code>128X64</code> 改为 <code>128X32</code></td></tr><tr><td>说「看左边」却往右</td><td><code>SERVO_PAN_REVERSE</code> → <code>true</code></td></tr><tr><td>说「抬头」却低头</td><td><code>SERVO_TILT_REVERSE</code> → <code>true</code></td></tr><tr><td>手在左边头却往右转</td><td><code>TRACK_LEFT_SIGN</code> 正负号取反</td></tr><tr><td>红外一直触发或从不触发</td><td>先调模块上电位器;仍不对 <code>IR_ACTIVE_LEVEL</code> → <code>1</code></td></tr><tr><td>触摸没反应</td><td><code>TOUCH_ACTIVE_HIGH</code> → <code>false</code></td></tr><tr><td>转动范围不对</td><td><code>SERVO_PAN_MIN/MAX</code>、<code>SERVO_TILT_MIN/MAX</code>、<code>SERVO_*_CENTER</code></td></tr></tbody></table></div>
+
+  <h3>D. 什么时候需要买补充零件</h3>
+  <div class="tw"><table><thead><tr><th>零件</th><th>什么时候买</th></tr></thead><tbody><tr><td>1000µF 16V 电解电容</td><td>舵机一动就重启,或喇叭有「噗噗」声</td></tr><tr><td>万用表</td><td>想精确查线、量电压,或出现原因不明的发烫</td></tr><tr><td>1N5819 二极管 + 稳定 5V 电源</td><td>要脱机运行(不接电脑)</td></tr></tbody></table></div>
+
+  <h3>E. 发给我看之前,请准备好</h3>
+  <div class="callout info">
+    <ol class="steps">
+      <li>你现在在第几阶段、哪个检查点没通过</li>
+      <li>看到的现象(屏幕上写了什么、有没有声音、哪里发烫)</li>
+      <li>接线照片:正面、反面各一张,要看清每根线的两端</li>
+      <li>如果有串口日志:复制报错原文,不要截成模糊的图</li>
+    </ol>
+  </div>
+  <p class="footer">说明:引脚图按 ESP32-S3-DevKitC-1 绘制,与你手里的板子不一致时以板上丝印为准。纸壳板型固件尚未在真实的 ESP-IDF 工具链上编译验证。</p>
+</section>
+</div>
+
+<script>
+(function(){
+  var boxes=[].slice.call(document.querySelectorAll('input[type=checkbox][data-k]'));
+  var KEY='cardboard-bot-guide-v1';
+  var saved={};
+  try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){}
+  function upd(){
+    var d=boxes.filter(function(b){return b.checked}).length;
+    var p=document.getElementById('prog');
+    if(p)p.textContent='检查点进度:'+d+' / '+boxes.length;
+  }
+  boxes.forEach(function(b){
+    if(saved[b.dataset.k])b.checked=true;
+    b.addEventListener('change',function(){
+      saved[b.dataset.k]=b.checked;
+      try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}
+      upd();
+    });
+  });
+  upd();
+})();
+</script>
+
+</body>
+</html>
