@@ -42,6 +42,11 @@
 #error "OLED display type is not selected"
 #endif
 
+// 1：整屏只显示机器人表情（眼睛+嘴巴），不显示状态栏、Wi-Fi 信号和对话文字
+//    （配网说明、激活验证码、错误提示仍会临时显示）
+// 0：恢复官方的状态栏+文字界面
+#define DISPLAY_FACE_ONLY 1
+
 // 画面上下颠倒时把这两项同时改成 false
 #define DISPLAY_MIRROR_X true
 #define DISPLAY_MIRROR_Y true

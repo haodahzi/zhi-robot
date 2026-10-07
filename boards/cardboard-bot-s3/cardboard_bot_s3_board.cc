@@ -7,6 +7,7 @@
 #include "config.h"
 #include "mcp_server.h"
 #include "robot_head.h"
+#include "robot_face_display.h"
 #include "led/single_led.h"
 #include "assets/lang_config.h"
 
@@ -96,7 +97,11 @@ private:
         ESP_LOGI(TAG, "Turning display on");
         ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_, true));
 
+#if DISPLAY_FACE_ONLY
+        display_ = new RobotFaceDisplay(panel_io_, panel_, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
+#else
         display_ = new OledDisplay(panel_io_, panel_, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
+#endif
     }
 
     void InitializeButtons() {
