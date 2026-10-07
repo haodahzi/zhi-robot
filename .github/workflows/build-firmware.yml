@@ -2,7 +2,7 @@ name: Build firmware
 
 # 在 GitHub 云端编译小纸壳机器人固件，不需要在本机安装 ESP-IDF。
 # 触发方式：1) 推送到仓库；2) Actions 页面手动点 Run workflow。
-# 编译完成后，在运行详情页底部 Artifacts 里下载 xiaozhi-cardboard-bot-s3.zip，
+# 编译完成后，在运行详情页底部 Artifacts 里下载 xiaozhi-<名称>.zip，
 # 解压得到 merged-binary.bin，刷入地址 0x0。
 
 on:
@@ -20,6 +20,17 @@ env:
 
 jobs:
   build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 阶段 1：官方面包板固件（0.96 寸 128x64 OLED），与 Releases 里的同名固件同源编译
+          - name: bread-compact-wifi-128x64
+            board: bread-compact-wifi
+          # 阶段 2 起：小纸壳机器人固件
+          - name: cardboard-bot-s3
+            board: cardboard-bot-s3
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v6.1
@@ -44,16 +55,16 @@ jobs:
           cd xiaozhi
           git apply --verbose ../robot/register-board.patch
 
-      - name: Build cardboard-bot-s3
+      - name: Build ${{ matrix.name }}
         shell: bash
         working-directory: xiaozhi
         run: |
           source "$IDF_PATH/export.sh"
-          python scripts/build.py cardboard-bot-s3
+          python scripts/build.py "${{ matrix.board }}" --name "${{ matrix.name }}"
 
       - name: Upload firmware
         uses: actions/upload-artifact@v7
         with:
-          name: xiaozhi-cardboard-bot-s3
+          name: xiaozhi-${{ matrix.name }}
           path: xiaozhi/build/merged-binary.bin
           if-no-files-found: error
