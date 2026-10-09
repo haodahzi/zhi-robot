@@ -104,10 +104,10 @@ public:
         if (face_ == nullptr) {
             return;
         }
-        EyeStyle left, right;
-        MouthStyle mouth;
-        FaceFor(emotion == nullptr ? "" : emotion, left, right, mouth);
-        ApplyFace(left, right, mouth);
+        FaceFor(emotion == nullptr ? "" : emotion, base_left_, base_right_, base_mouth_);
+        if (!listening_) {
+            ApplyFace(base_left_, base_right_, base_mouth_);
+        }
     }
 
     // 只有系统提示（配网说明、激活验证码、错误）才临时显示文字
@@ -154,6 +154,10 @@ private:
     lv_obj_t* text_label_ = nullptr;
     lv_timer_t* timer_ = nullptr;
 
+    EyeStyle base_left_ = kEyeOval;
+    EyeStyle base_right_ = kEyeOval;
+    MouthStyle base_mouth_ = kMouthSmile;
+    bool listening_ = false;
     EyeStyle eye_style_[2] = {kEyeOval, kEyeOval};
     MouthStyle mouth_style_ = kMouthSmile;
     bool blink_closed_ = false;
@@ -305,6 +309,19 @@ private:
             return;
         }
         tick_++;
+
+        // 聆听时眼睛睁大,作为“正在听你说话”的提示
+        bool listening = Application::GetInstance().GetDeviceState() == kDeviceStateListening;
+        if (listening != listening_) {
+            listening_ = listening;
+            if (listening_) {
+                ApplyFace(kEyeWide, kEyeWide, kMouthSmile);
+            } else {
+                ApplyFace(base_left_, base_right_, base_mouth_);
+            }
+            return;
+        }
+
         bool changed_eyes = false;
         bool changed_mouth = false;
 
