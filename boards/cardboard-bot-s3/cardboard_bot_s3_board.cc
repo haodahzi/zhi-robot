@@ -114,6 +114,11 @@ private:
             app.ToggleChatState();
         });
 
+        // 长按 BOOT 键约 2 秒：随时进入配网模式。
+        // 在配网模式里再按一下 BOOT 是“录音回放测试”：说几秒话，再按一下 BOOT 就会把刚才录的声音放出来，
+        // 用来单独检查 麦克风 + 功放 + 喇叭。测完按 RST 重启。
+        boot_button_.OnLongPress([this]() { EnterWifiConfigMode(); });
+
         // 摸头：点头 + 开心表情；空闲时顺便唤醒，让小智对“被摸头”作出回应
         touch_button_.OnClick([this]() {
             if (head_ != nullptr) {
