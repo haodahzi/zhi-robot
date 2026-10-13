@@ -120,7 +120,7 @@ pre{background:var(--code);border-radius:8px;padding:12px;overflow-x:auto;font-f
 <header class="top">
   <p class="eyebrow">ESP32-S3 × 小智 · 零基础版</p>
   <h1>小纸壳机器人搭建手册</h1>
-  <p class="sub">按你的实际硬件验证过的版本:ESP32-S3 N16R8 双 Type-C 板 + 电源模块(3.3V、5V、GND 全部由它供给)。先不脱机。每一步都有「检查点」,过了再往下走。</p>
+  <p class="sub">v4 · 2026-10-13 更新(新增:万用表用法、录音回放测试、爱心眼/触摸/聆听等固件功能、排查流程)。按你的实际硬件验证过的版本:ESP32-S3 N16R8 双 Type-C 板 + 电源模块(3.3V、5V、GND 全部由它供给)。先不脱机。每一步都有「检查点」,过了再往下走。</p>
   <p id="prog"></p>
 </header>
 <nav class="stages" aria-label="阶段导航">
@@ -197,6 +197,14 @@ pre{background:var(--code);border-radius:8px;padding:12px;overflow-x:auto;font-f
     <li><b>3 秒内</b>:盯着看有没有冒烟、有没有焦糊味。有 → 立刻拔线。</li>
     <li>上电 10 秒后,用手背轻碰开发板上的芯片和每个模块上的小芯片。<b>烫手 → 立刻拔线</b>,检查接线(最可能是 3V3 和 5V 接反或碰在一起)。</li>
   </ol>
+
+  <h3>0.6b 万用表怎么用(DT9205P-S)</h3>
+  <p>本手册的所有检查都用这块表。两个档位够用:</p>
+  <div class="tw"><table><thead><tr><th>要做什么</th><th>表笔插孔</th><th>旋钮拨到</th><th>怎么读</th></tr></thead><tbody><tr><td><b>量电压</b>(通电)</td><td>黑表笔 <b>COM</b>,红表笔最右边 <b>VΩ</b></td><td>右上「直流电压 V⎓」的 <b>20</b> 档</td><td>黑表笔接 GND,红表笔点要测的点。3.3V 路应是 3.1~3.5V,5V 路应是 4.8~5.3V。读数前有负号只是红黑反了</td></tr><tr><td><b>查通断/短路</b>(<b>必须断电</b>)</td><td>同上</td><td>左下「蜂鸣 ·))  ▶|」档</td><td>两点连通会嘀嘀响;完全不通显示 <code>1</code>。<b>刚碰上瞬间短促响一声是电容充电,正常</b>;一直连续响、读数接近 0 才是短路</td></tr></tbody></table></div>
+  <div class="callout rule"><b class="t">别用错孔</b>红表笔不要插 <code>20A</code> 或 <code>mA</code> 孔去测电压,表上写着「禁止电流孔测电压」。</div>
+  <div class="callout info"><b class="t">每次改接线的固定流程</b>
+    ① 断电 → ② 接线 → ③ 用通断档查:新模块的电源脚和 GND 之间不能短路 → ④ 先插 USB,再给电源模块通电 → ⑤ 量模块 VDD/VCC 电压在 3.1~3.5V → ⑥ 摸一下模块芯片,烫手就立刻断电。
+    <br><b>电源模块的 3.3V 一路,首次使用前先空载量一次,确认在 3.1~3.5V 再接任何模块。</b>这一步能避免一次误接 5V 烧掉整块板子(之前发生过)。</div>
 
   <h3>0.7 开箱确认</h3>
   <div class="check"><h4>✅ 检查点 0:开箱确认</h4>
@@ -278,18 +286,31 @@ pre{background:var(--code);border-radius:8px;padding:12px;overflow-x:auto;font-f
 
   <div class="check"><h4>✅ 检查点 1.3:阶段 1 通过</h4><label class="chk"><input type="checkbox" data-k="c18"><span>说「你好小智」,机器人被唤醒(屏幕有变化)</span></label><label class="chk"><input type="checkbox" data-k="c19"><span>它能用声音回答你的问题(喇叭有声音)</span></label><label class="chk"><input type="checkbox" data-k="c20"><span>OLED 显示表情和文字,方向正确、没有花屏</span></label><label class="chk"><input type="checkbox" data-k="c21"><span>开机后 10 分钟内没有自己重启</span></label></div>
 
+  <h3>1.5 录音回放测试(排查麦克风和喇叭,不依赖网络)</h3>
+  <ol class="steps">
+    <li>板子正常启动,脸出现。</li>
+    <li><b>长按 <code>BOOT</code> 键约 2 秒</b>,屏幕出现配网提示文字(进入了配网模式)。</li>
+    <li><b>再按一下 <code>BOOT</code></b>,开始录音。对着麦克风连续说 3~5 秒(「一二三四五」)。</li>
+    <li><b>再按一下 <code>BOOT</code></b>,喇叭会把刚才录的声音放出来。</li>
+    <li>测完点 <code>RST</code> 重启。</li>
+  </ol>
+  <div class="tw"><table><thead><tr><th>放出什么</th><th>说明</th></tr></thead><tbody><tr><td>你的声音</td><td>麦克风、功放、喇叭都是好的。对话没反应就查网络和服务器</td></tr><tr><td>杂音、嗡嗡声、完全安静</td><td>麦克风收不到声音(模块可能坏了),或接线有问题。供电、<code>L/R</code> 接地、<code>WS/SCK/SD</code> 通断都对的话,换一个新的 INMP441</td></tr></tbody></table></div>
+  <p><b>怎么判断「聆听」有没有开始</b>:点一下 <code>BOOT</code>(或对它说「你好小智」),脸上的<b>眼睛会从长圆变成圆</b>,表示在听你说话。</p>
+
   <h3>阶段 1 常见问题</h3>
-  <div class="tw"><table><thead><tr><th>现象</th><th>怎么办</th></tr></thead><tbody><tr><td>屏幕上下颠倒</td><td>先记下来,阶段 2 的固件里改一项参数即可,不用改线</td></tr><tr><td>屏幕只显示一半或花屏</td><td>固件选错了,换成对应屏幕尺寸的版本</td></tr><tr><td>屏幕完全不亮</td><td>检查 OLED 的 VCC/GND/SDA/SCL 有没有接对、有没有松动;SDA 接 GPIO41、SCL 接 GPIO42</td></tr><tr><td>唤不醒,或总听不清</td><td>麦克风小孔有没有被挡住;L/R 有没有接 GND;麦克风离喇叭是否太近;说话离近一点</td></tr><tr><td>能唤醒但<b>完全没声音</b></td><td><b>最常见:功放没电。</b>开发板用 USB 供电时 5V 引脚不输出,功放 Vin 必须接电源模块 5V,并且电源模块已通电、与开发板共地。再核对 DIN→GPIO7、BCLK→GPIO15、LRC→GPIO16,喇叭线夹紧在绿色端子的 + 和 −。SD 脚不用接</td></tr><tr><td>声音破、或播放时重启</td><td>先把音量调小;检查电源模块的输入电源够不够(5V 2A 以上),共地线是否接牢</td></tr><tr><td>刷机时连接失败 / 端口已被打开</td><td>见 1.3 最后一行:重新进下载模式、刷新网页</td></tr></tbody></table></div>
+  <div class="tw"><table><thead><tr><th>现象</th><th>怎么办</th></tr></thead><tbody><tr><td>屏幕上下颠倒</td><td>先记下来,阶段 2 的固件里改一项参数即可,不用改线</td></tr><tr><td>屏幕只显示一半或花屏</td><td>固件选错了,换成对应屏幕尺寸的版本</td></tr><tr><td>屏幕完全不亮</td><td>检查 OLED 的 VCC/GND/SDA/SCL 有没有接对、有没有松动;SDA 接 GPIO41、SCL 接 GPIO42</td></tr><tr><td>唤不醒,或总听不清</td><td>麦克风小孔有没有被挡住;L/R 有没有接 GND;麦克风离喇叭是否太近;说话离近一点</td></tr><tr><td>能唤醒但<b>完全没声音</b></td><td><b>最常见:功放没电。</b>开发板用 USB 供电时 5V 引脚不输出,功放 Vin 必须接电源模块 5V,并且电源模块已通电、与开发板共地。再核对 DIN→GPIO7、BCLK→GPIO15、LRC→GPIO16,喇叭线夹紧在绿色端子的 + 和 −。SD 脚不用接</td></tr><tr><td>声音破、或播放时重启</td><td>先把音量调小;检查电源模块的输入电源够不够(5V 2A 以上),共地线是否接牢</td></tr><tr><td>刷机时连接失败 / 端口已被打开</td><td>见 1.3 最后一行:重新进下载模式、刷新网页</td></tr><tr><td>能唤醒、设备在线,但对话没有任何反应</td><td>先做 1.5 录音回放。再用万用表量:麦克风 <code>VDD</code> 约 3.2V、<code>L/R</code> 为 0V、<code>GPIO4/5</code> 约 1.6V(时钟);断电通断档查 <code>GPIO4/5/6</code> 与 <code>WS/SCK/SD</code> 是否连通。都正常仍然安静,换新麦克风(旧的可能被过压损坏)</td></tr></tbody></table></div>
 </section>
 
 <!-- ======================================================= 2 -->
 <section class="stage" id="s2">
   <p class="eyebrow">阶段 2</p><h2>换成纸壳机器人固件</h2><p class="time">预计 30 分钟 · 硬件不变,只换固件 <span class="pill ok">云端已编译通过</span></p>
 
-  <div class="callout info"><b class="t">状态</b>
-    纸壳机器人板型固件(<code>cardboard-bot-s3</code>)已经在你的 GitHub 仓库里用 ESP-IDF v6.1 编译成功。
-    <b>但还没有在真实硬件上跑过</b>,第一次刷入如果出问题,把现象告诉我。
-    <br>下载地址(需要登录 GitHub):<a href="https://github.com/haodahzi/zhi-robot/actions/runs/37584725864">编译结果页</a>,最底部 Artifacts 里的 <code>xiaozhi-cardboard-bot-s3</code>,解压得到 <code>merged-binary.bin</code>。</div>
+  <div class="callout ok"><b class="t">状态:已在真实硬件上跑通</b>
+    纸壳机器人固件(<code>cardboard-bot-s3</code>)在 ESP-IDF v6.1 云端编译,已在你的板子上验证:联网、绑定、对话、喇叭、OLED 脸都正常。
+    <br>最新固件(包含下面所有功能)下载地址(需要登录 GitHub):<a href="https://github.com/haodahzi/zhi-robot/actions/runs/38408724901">编译结果页</a>,最底部 Artifacts 里的 <code>xiaozhi-cardboard-bot-s3</code>,解压得到 <code>merged-binary.bin</code>。以后我再改固件,会给新的地址。</div>
+
+  <h3>固件功能一览</h3>
+  <div class="tw"><table><thead><tr><th>功能</th><th>说明</th></tr></thead><tbody><tr><td>整屏只显示机器人脸</td><td>眼睛、嘴巴随情绪变化;空闲时眨眼;说话时嘴巴张合。配网说明、激活验证码、错误提示仍会临时显示文字</td></tr><tr><td>聆听提示</td><td>进入聆听(按 BOOT 或唤醒)时眼睛从长圆变圆</td></tr><tr><td>摸头</td><td>手一碰上去立刻点头 + <b>爱心眼</b> + 大笑,2 秒后恢复;空闲时松手后小智回应;长按约 2 秒开始/结束对话</td></tr><tr><td>长按 BOOT 约 2 秒</td><td>进入配网模式,里面再按 BOOT 是录音回放测试(见 1.5)</td></tr><tr><td>恢复官方界面</td><td><code>config.h</code> 里 <code>DISPLAY_FACE_ONLY</code> 改为 <code>0</code></td></tr></tbody></table></div>
 
   <h3>固件里已包含的两处修复</h3>
   <div class="tw"><table><thead><tr><th>问题</th><th>已做的修复</th></tr></thead><tbody><tr><td>红外追踪方向和语音转头方向默认相反</td><td><code>TRACK_LEFT_SIGN</code> 默认改为 <code>(-1)</code>,之后只用一个开关 <code>SERVO_PAN_REVERSE</code> 校准方向</td></tr><tr><td>说「看左边」约 8 秒后头会自己转回中间</td><td>语音转头后保持 30 秒再回中</td></tr></tbody></table></div>
@@ -317,6 +338,13 @@ idf.py -p COM口 flash monitor</pre>
 <!-- ======================================================= 3 -->
 <section class="stage" id="s3">
   <p class="eyebrow">阶段 3</p><h2>触摸和红外</h2><p class="time">预计 1 小时 · 三个模块的 VCC 接电源模块 3.3V,GND 接电源模块 GND</p>
+
+  <h3>3.0 先量电源模块的 3.3V(必做)</h3>
+  <ol class="steps">
+    <li>电源模块输出孔上<b>不接任何线</b>(不连开发板,不连模块),单独通电。</li>
+    <li>万用表直流电压 <code>20</code> 档,黑表笔接电源模块 GND 孔,红表笔接 3.3V 一路的 <code>+</code> 孔。</li>
+    <li>读数在 <b>3.1V ~ 3.5V</b> 才能继续。是 5V 的话,检查跳线帽,<b>不要接任何模块</b>。</li>
+  </ol>
 
   <h3>3.1 先单独测每个模块(不接信号线)</h3>
   <p>模块上自带指示灯,不用万用表就能知道模块好不好用。<b>此时只接电源脚和地脚。</b></p>
@@ -438,7 +466,16 @@ idf.py -p COM口 flash monitor</pre>
   <h3>D. 什么时候需要买补充零件</h3>
   <div class="tw"><table><thead><tr><th>零件</th><th>什么时候买</th></tr></thead><tbody><tr><td>1000µF 16V 电解电容</td><td>舵机一动就重启,或喇叭有「噗噗」声</td></tr><tr><td>万用表</td><td>想确认电源模块输出的是 3.3V 还是 5V,或精确查线,或出现原因不明的发烫</td></tr><tr><td>小面包板</td><td>电源模块的接点不够用(3.3V 要 5 根、5V 要 3 根、GND 要 10 根)时,给电源分线,几块钱</td></tr><tr><td>1N5819 二极管 + 稳定 5V 电源</td><td>要脱机运行(不接电脑)</td></tr></tbody></table></div>
 
-  <h3>E. 发给我看之前,请准备好</h3>
+  <h3>E. 发烫、没反应怎么排查</h3>
+  <ol class="steps">
+    <li>立刻断电(拔 USB、关电源模块),等凉透。</li>
+    <li>拔掉开发板上<b>所有杜邦线</b>,只留 USB,通电 3 分钟。银色模块温热能按住是正常的,烫得没法碰就是异常。</li>
+    <li>再单独给电源模块通电(空载),量 3.3V、5V 两路电压。</li>
+    <li><b>一个一个</b>把模块加回去,每加一个量电压、摸发不发烫,最先出问题的就是犯错的那个。</li>
+    <li>通断档查新接的模块 <code>VCC</code>-<code>GND</code> 有没有短路;红外、触摸模块的排针顺序和印字对照,<b>不要按位置数</b>。</li>
+  </ol>
+
+  <h3>F. 发给我看之前,请准备好</h3>
   <div class="callout info">
     <ol class="steps">
       <li>你现在在第几阶段、哪个检查点没通过</li>
@@ -447,14 +484,14 @@ idf.py -p COM口 flash monitor</pre>
       <li>如果有串口日志:复制报错原文,不要截成模糊的图</li>
     </ol>
   </div>
-  <p class="footer">说明:引脚图按 ESP32-S3-DevKitC-1 绘制,与你手里的板子不一致时以板上丝印为准。纸壳板型固件已在云端编译通过,但尚未在真实硬件上验证。</p>
+  <p class="footer">说明:引脚图按 ESP32-S3-DevKitC-1 绘制,与你手里的板子不一致时以板上丝印为准。纸壳板型固件已在云端编译通过,并在真实硬件上验证过联网、对话、喇叭和 OLED 脸;触摸响应、爱心眼、红外、舵机仍待验证。</p>
 </section>
 </div>
 
 <script>
 (function(){
   var boxes=[].slice.call(document.querySelectorAll('input[type=checkbox][data-k]'));
-  var KEY='cardboard-bot-guide-v2';
+  var KEY='cardboard-bot-guide-v4';
   var saved={};
   try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){}
   function upd(){
