@@ -31,6 +31,7 @@ private:
     Button boot_button_;
     Button touch_button_;
     RobotHead* head_ = nullptr;
+    esp_timer_handle_t touch_reset_timer_ = nullptr;
 
     void InitializeDisplayI2c() {
         i2c_master_bus_config_t bus_config = {
@@ -119,12 +120,30 @@ private:
         // 用来单独检查 麦克风 + 功放 + 喇叭。测完按 RST 重启。
         boot_button_.OnLongPress([this]() { EnterWifiConfigMode(); });
 
-        // 摸头：点头 + 开心表情；空闲时顺便唤醒，让小智对“被摸头”作出回应
-        touch_button_.OnClick([this]() {
+        // 摸头：手一碰上去(按下瞬间)就立刻点头+开心表情，反馈要快；
+        // 松手后的“单击”再让小智对“被摸头”作出回应(空闲时才唤醒，需要联网所以稍慢)
+        // 摸完 2 秒后，如果机器人还是空闲，表情恢复平静
+        esp_timer_create_args_t reset_args = {};
+        reset_args.callback = [](void* arg) {
+            auto* board = static_cast<CardboardBotS3Board*>(arg);
+            if (Application::GetInstance().GetDeviceState() == kDeviceStateIdle) {
+                board->GetDisplay()->SetEmotion("neutral");
+            }
+        };
+        reset_args.arg = this;
+        reset_args.dispatch_method = ESP_TIMER_TASK;
+        reset_args.name = "touch_reset";
+        ESP_ERROR_CHECK(esp_timer_create(&reset_args, &touch_reset_timer_));
+
+        touch_button_.OnPressDown([this]() {
             if (head_ != nullptr) {
                 head_->PlayGesture(RobotHead::kGestureNod);
             }
             GetDisplay()->SetEmotion("loving");
+            esp_timer_stop(touch_reset_timer_);
+            esp_timer_start_once(touch_reset_timer_, 2000000);
+        });
+        touch_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateIdle) {
                 app.WakeWordInvoke("（用户摸了摸你的头）");
