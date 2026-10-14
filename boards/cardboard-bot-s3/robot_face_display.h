@@ -55,7 +55,7 @@ public:
             lv_obj_set_style_bg_color(eye_[i], lv_color_black(), 0);
             lv_obj_set_style_radius(eye_[i], LV_RADIUS_CIRCLE, 0);
             eye_arc_[i] = MakeArc(group_);
-            heart_[i] = MakeHeart(group_, heart_buf_[i]);
+            heart_[i] = MakeHeart(group_);
         }
         mouth_arc_ = MakeArc(group_);
         mouth_open_ = lv_obj_create(group_);
@@ -150,10 +150,8 @@ private:
     lv_obj_t* eye_[2] = {nullptr, nullptr};
     lv_obj_t* eye_arc_[2] = {nullptr, nullptr};
     lv_obj_t* heart_[2] = {nullptr, nullptr};
-    // 爱心用 13x11 的像素图放大 2 倍(26x22)画在画布上，边缘清晰
     static constexpr int kHeartW = 26;
     static constexpr int kHeartH = 22;
-    alignas(64) uint8_t heart_buf_[2][4096];
     lv_obj_t* mouth_arc_ = nullptr;
     lv_obj_t* mouth_open_ = nullptr;
     lv_obj_t* mouth_flat_ = nullptr;
@@ -196,29 +194,37 @@ private:
         return arc;
     }
 
-    static lv_obj_t* MakeHeart(lv_obj_t* parent, uint8_t* buf) {
+    // 爱心：13x11 的像素图放大 2 倍，用一行一行的黑色小矩形拼出来(和眼睛一样只用最基础的方块，最稳)
+    static lv_obj_t* MakeHeart(lv_obj_t* parent) {
         static const char* const kPattern[11] = {
             "..###...###..", ".#####.#####.", "#############", "#############", "#############",
             ".###########.", "..#########..", "...#######...", "....#####....", ".....###.....",
             "......#......",
         };
-        lv_obj_t* canvas = lv_canvas_create(parent);
-        lv_canvas_set_buffer(canvas, buf, kHeartW, kHeartH, LV_COLOR_FORMAT_ARGB8888);
-        lv_canvas_fill_bg(canvas, lv_color_white(), LV_OPA_TRANSP);
+        lv_obj_t* box = lv_obj_create(parent);
+        StyleBare(box);
+        lv_obj_set_size(box, kHeartW, kHeartH);
         for (int y = 0; y < 11; y++) {
-            for (int x = 0; x < 13; x++) {
-                if (kPattern[y][x] == '#') {
-                    for (int dy = 0; dy < 2; dy++) {
-                        for (int dx = 0; dx < 2; dx++) {
-                            lv_canvas_set_px(canvas, x * 2 + dx, y * 2 + dy, lv_color_black(), LV_OPA_COVER);
-                        }
-                    }
+            int x = 0;
+            while (x < 13) {
+                if (kPattern[y][x] != '#') {
+                    x++;
+                    continue;
                 }
+                int x0 = x;
+                while (x < 13 && kPattern[y][x] == '#') {
+                    x++;
+                }
+                lv_obj_t* run = lv_obj_create(box);
+                StyleBare(run);
+                lv_obj_set_style_bg_opa(run, LV_OPA_COVER, 0);
+                lv_obj_set_style_bg_color(run, lv_color_black(), 0);
+                lv_obj_set_size(run, (x - x0) * 2, 2);
+                lv_obj_set_pos(run, x0 * 2, y * 2);
             }
         }
-        lv_obj_remove_flag(canvas, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(canvas, LV_OBJ_FLAG_HIDDEN);
-        return canvas;
+        lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
+        return box;
     }
 
     static void PlaceArc(lv_obj_t* arc, int cx, int cy, int d, int a0, int a1, int width) {
