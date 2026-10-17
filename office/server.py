@@ -97,10 +97,11 @@ def find_person(name: str) -> dict:
 
 
 @mcp.tool()
-def find_free_rooms(start: str, end: str, room_name: str = "") -> dict:
-    """查询指定时间段内空闲的会议室。room_name 只传核心专名(如「永澄亭」,不要带「会议室」三个字)。"""
+def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int = 0) -> dict:
+    """查询指定时间段内空闲的会议室。room_name 只传核心专名(如「永澄亭」,不要带「会议室」三个字和楼层前缀);min_capacity 为最少容纳人数。"""
     try:
         rooms = dws.search_rooms(dws.to_iso(start), dws.to_iso(end), room_name or None)
+        rooms = [dws.slim_room(r) for r in rooms if (r.get("capacity") or 0) >= min_capacity]
         return {"success": True, "rooms": rooms[:10], "total": len(rooms)}
     except Exception as ex:
         return _err(ex)
@@ -108,9 +109,9 @@ def find_free_rooms(start: str, end: str, room_name: str = "") -> dict:
 
 @mcp.tool()
 def draft_calendar_event(title: str, start: str, end: str, attendee_names: list[str] | None = None,
-                         room_name: str = "", need_room: bool = False, desc: str = "") -> dict:
+                         room_name: str = "", need_room: bool = False, min_capacity: int = 0, desc: str = "") -> dict:
     """起草一个钉钉日程,但【不会创建】。参会人用姓名即可(会自动查 userId,重名会返回候选让你问用户)。
-    need_room=true 或给了 room_name 时会自动挑一个该时段空闲的会议室。
+    need_room=true 或给了 room_name 时会自动挑一个该时段空闲、无需审批、容量够(min_capacity)的最小会议室。
     调用后把 preview 念给用户并问「确认创建吗」;用户明确确认后才可用 confirm_code 调用 confirm_calendar_event。"""
     try:
         s, e = dws.to_iso(start), dws.to_iso(end)
@@ -125,11 +126,12 @@ def draft_calendar_event(title: str, start: str, end: str, attendee_names: list[
             names.append(cands[0].get("name") or n)
         rooms, room_label = [], ""
         if need_room or room_name:
-            free = dws.search_rooms(s, e, room_name or None)
-            if not free:
-                return {"success": False, "error": "该时段没有符合条件的空闲会议室"}
-            rooms = [free[0]["roomId"]]
-            room_label = free[0].get("roomName") or free[0].get("name") or room_name or "空闲会议室"
+            need = max(min_capacity, len(ids) + 1)
+            chosen = dws.pick_room(dws.search_rooms(s, e, room_name or None), need)
+            if chosen is None:
+                return {"success": False, "error": "该时段没有符合条件(无需审批、容量够)的空闲会议室"}
+            rooms = [chosen["roomId"]]
+            room_label = f"{chosen.get('roomName')}(可坐{chosen.get('capacity')}人)"
         payload = {"title": title.strip(), "start": s, "end": e, "attendees": ids, "rooms": rooms, "desc": desc}
         code = pending.add("calendar_event", payload)
         preview = f"{title}:{s} 至 {e}" + (f";参会人:{'、'.join(names)}" if names else "") + (f";会议室:{room_label}" if rooms else "")

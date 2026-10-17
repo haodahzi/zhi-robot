@@ -33,6 +33,14 @@ class DwsTest(unittest.TestCase):
         self.assertIn("r1", c)
         self.assertIn("--yes", c)
 
+    def test_pick_room_skips_approval_and_small_rooms(self):
+        rooms = [{"roomId": "a", "capacity": 4, "needApproval": False},
+                 {"roomId": "b", "capacity": 8, "needApproval": True},
+                 {"roomId": "c", "capacity": 10, "needApproval": False},
+                 {"roomId": "d", "capacity": 6, "needApproval": False}]
+        self.assertEqual(d.pick_room(rooms, 5)["roomId"], "d")
+        self.assertIsNone(d.pick_room(rooms, 20))
+
     def test_errors(self):
         with self.assertRaises(d.DwsError):
             d.run(["x"], fake(code=1))

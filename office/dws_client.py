@@ -95,3 +95,21 @@ def search_group(name: str, runner=subprocess.run) -> list[dict]:
 
 def send_group_message(conversation_id: str, text: str, runner=subprocess.run):
     return run(["chat", "message", "send", "--conversation-id", conversation_id, "--content", text, "--yes"], runner)
+
+
+def slim_room(r: dict) -> dict:
+    """只保留语音场景需要的字段(字段名取自真实返回:roomId/roomName/capacity/needApproval/fullGroupPath/labels)。"""
+    return {
+        "roomId": r["roomId"],
+        "roomName": r.get("roomName"),
+        "capacity": r.get("capacity"),
+        "floor": r.get("fullGroupPath"),
+        "needApproval": bool(r.get("needApproval")),
+        "labels": [x.get("labelName") for x in r.get("labels") or []],
+    }
+
+
+def pick_room(rooms: list[dict], min_capacity: int = 0) -> dict | None:
+    """选一间不需要审批、容量够用的最小会议室。"""
+    ok = [r for r in rooms if not r.get("needApproval") and (r.get("capacity") or 0) >= min_capacity]
+    return min(ok, key=lambda r: r.get("capacity") or 0) if ok else None
