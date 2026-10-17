@@ -4,7 +4,9 @@
 具体字段名(userId / roomId / openConversationId)取自 dws 官方文档示例。
 """
 import json
+import os
 import re
+import shutil
 import subprocess
 from datetime import datetime, timedelta, timezone
 
@@ -15,8 +17,40 @@ class DwsError(RuntimeError):
     pass
 
 
+_CMD_UNSAFE = set('&|<>^%"\r\n')
+
+
+def resolve_dws() -> list[str]:
+    """找到可直接执行的 dws 命令行前缀。
+
+    Windows 上 npm 安装的 dws 是 dws.cmd,Python 的 subprocess 不能像 shell 那样直接找到它;
+    交给 cmd.exe 解析又会让 & | % 等字符被当成命令。所以优先解析 .cmd 里指向的真实程序
+    (node 脚本或 exe),解析不了才退回 .cmd 本身,并在 run() 里拒绝危险字符。"""
+    found = shutil.which("dws")
+    if not found:
+        return ["dws"]
+    if found.lower().endswith((".cmd", ".bat")):
+        try:
+            text = open(found, encoding="utf-8", errors="ignore").read()
+        except OSError:
+            return [found]
+        base = os.path.dirname(found)
+        m = re.search(r'"%(?:~dp0|dp0%)\\?([^"%]+\.(?:js|mjs|cjs|exe))"', text, re.I)
+        if m:
+            target = os.path.join(base, m.group(1).replace("\\", os.sep))
+            if os.path.exists(target):
+                if target.lower().endswith(".exe"):
+                    return [target]
+                node = os.path.join(base, "node.exe")
+                return [node if os.path.exists(node) else (shutil.which("node") or "node"), target]
+    return [found]
+
+
 def run(args: list[str], runner=subprocess.run, timeout: float = 40.0):
-    cmd = ["dws", *args, "--format", "json"]
+    prefix = resolve_dws() if runner is subprocess.run else ["dws"]
+    if prefix[0].lower().endswith((".cmd", ".bat")) and any(_CMD_UNSAFE & set(a) for a in args):
+        raise DwsError("当前 dws 只能通过 cmd.exe 调用,内容里含有 & | < > ^ % \" 等特殊字符,请去掉后重试")
+    cmd = [*prefix, *args, "--format", "json"]
     try:
         r = runner(cmd, capture_output=True, text=True, encoding="utf-8", timeout=timeout)
     except FileNotFoundError:
