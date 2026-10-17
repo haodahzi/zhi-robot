@@ -34,7 +34,7 @@
 
 ## 使用步骤(Windows,PowerShell)
 
-1. 准备 Python 3.11+。
+1. 准备 Python 3.11+。Windows 上若 `python` 命令不可用(常见于 Microsoft Store 的占位程序),用 `py` 代替,下文同理。
 2. 获取桥接脚本(官方示例项目,MIT):
    `git clone https://github.com/78/mcp-calculator` ,里面的 `mcp_pipe.py` 就是桥接脚本。
 3. 安装依赖:`pip install -r office/requirements.txt`,以及 mcp-calculator 的 `requirements.txt`。
@@ -42,11 +42,11 @@
 5. 先用官方 `calculator.py` 验证链路:
    ```
    $env:MCP_ENDPOINT = "<接入点地址>"
-   python mcp_pipe.py calculator.py
+   py mcp_pipe.py calculator.py
    ```
    对机器人说「算一下 123 乘 456」,能答出来就说明链路通了。
 6. 配置钉钉群机器人:群里添加「自定义机器人」,安全设置选「加签」,把 Webhook 和密钥写进 `office/.env`(参照 `.env.example`)。
-7. 把 `office/mcp_config.example.json` 复制成 mcp-calculator 目录下的 `mcp_config.json`(改好路径),再运行 `python mcp_pipe.py`。
+7. 把 `office/mcp_config.example.json` 复制成 mcp-calculator 目录下的 `mcp_config.json`(改好路径),再运行 `py mcp_pipe.py`。
 8. 对机器人说:「给项目群发一条消息,内容是下午三点开会」。它会复述,你确认后才发送。
 
 ## 安全说明
