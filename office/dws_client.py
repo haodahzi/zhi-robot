@@ -110,6 +110,8 @@ def slim_room(r: dict) -> dict:
 
 
 def pick_room(rooms: list[dict], min_capacity: int = 0) -> dict | None:
-    """选一间不需要审批、容量够用的最小会议室。"""
-    ok = [r for r in rooms if not r.get("needApproval") and (r.get("capacity") or 0) >= min_capacity]
-    return min(ok, key=lambda r: r.get("capacity") or 0) if ok else None
+    """选容量够用的最小会议室;无需审批的优先,没有再选需要审批的(调用方要把审批告知用户)。"""
+    fit = [r for r in rooms if (r.get("capacity") or 0) >= min_capacity]
+    if not fit:
+        return None
+    return min(fit, key=lambda r: (bool(r.get("needApproval")), r.get("capacity") or 0))

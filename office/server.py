@@ -111,7 +111,7 @@ def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int
 def draft_calendar_event(title: str, start: str, end: str, attendee_names: list[str] | None = None,
                          room_name: str = "", need_room: bool = False, min_capacity: int = 0, desc: str = "") -> dict:
     """起草一个钉钉日程,但【不会创建】。参会人用姓名即可(会自动查 userId,重名会返回候选让你问用户)。
-    need_room=true 或给了 room_name 时会自动挑一个该时段空闲、无需审批、容量够(min_capacity)的最小会议室。
+    need_room=true 或给了 room_name 时会自动挑一个该时段空闲、容量够(min_capacity)的最小会议室,优先无需审批的;若只能选需审批的,preview 会注明,必须告诉用户「提交后要审批,通过前不算订到」。
     调用后把 preview 念给用户并问「确认创建吗」;用户明确确认后才可用 confirm_code 调用 confirm_calendar_event。"""
     try:
         s, e = dws.to_iso(start), dws.to_iso(end)
@@ -129,9 +129,11 @@ def draft_calendar_event(title: str, start: str, end: str, attendee_names: list[
             need = max(min_capacity, len(ids) + 1)
             chosen = dws.pick_room(dws.search_rooms(s, e, room_name or None), need)
             if chosen is None:
-                return {"success": False, "error": "该时段没有符合条件(无需审批、容量够)的空闲会议室"}
+                return {"success": False, "error": "该时段没有容量够用的空闲会议室"}
             rooms = [chosen["roomId"]]
             room_label = f"{chosen.get('roomName')}(可坐{chosen.get('capacity')}人)"
+            if chosen.get("needApproval"):
+                room_label += "【需审批,提交后通过前不算订到】"
         payload = {"title": title.strip(), "start": s, "end": e, "attendees": ids, "rooms": rooms, "desc": desc}
         code = pending.add("calendar_event", payload)
         preview = f"{title}:{s} 至 {e}" + (f";参会人:{'、'.join(names)}" if names else "") + (f";会议室:{room_label}" if rooms else "")
@@ -149,7 +151,7 @@ def confirm_calendar_event(confirm_code: str) -> dict:
     p = item[1]
     try:
         dws.create_event(p["title"], p["start"], p["end"], p["attendees"], p["rooms"], p["desc"])
-        return {"success": True, "message": "日程已创建"}
+        return {"success": True, "message": "日程已创建" + ("(会议室已提交预订,若需审批请等审批通过)" if p["rooms"] else "")}
     except Exception as ex:
         return _err(ex)
 
