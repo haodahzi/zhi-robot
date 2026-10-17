@@ -4,6 +4,7 @@
 具体字段名(userId / roomId / openConversationId)取自 dws 官方文档示例。
 """
 import json
+import re
 import subprocess
 from datetime import datetime, timedelta, timezone
 
@@ -115,3 +116,10 @@ def pick_room(rooms: list[dict], min_capacity: int = 0) -> dict | None:
     if not fit:
         return None
     return min(fit, key=lambda r: (bool(r.get("needApproval")), r.get("capacity") or 0))
+
+
+def on_floor(room: dict, floor: int) -> bool:
+    """按楼层筛选。真实数据里楼层出现在 fullGroupPath(如「6层 会议室」)和 roomName(如「06F-2号会议室」);
+    用数字边界避免 6 匹配到 16 层。"""
+    text = f"{room.get('fullGroupPath') or ''} {room.get('roomName') or ''}"
+    return bool(re.search(rf"(?<!\d){floor}层", text) or re.search(rf"(?<!\d)0?{floor}F", text, re.I))

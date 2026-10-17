@@ -97,11 +97,11 @@ def find_person(name: str) -> dict:
 
 
 @mcp.tool()
-def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int = 0) -> dict:
-    """查询指定时间段内空闲的会议室。room_name 只传核心专名(如「永澄亭」,不要带「会议室」三个字和楼层前缀);min_capacity 为最少容纳人数。"""
+def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int = 0, floor: int = 0) -> dict:
+    """查询指定时间段内空闲的会议室。room_name 只传核心专名(如「永澄亭」,不要带「会议室」三个字和楼层前缀);min_capacity 为最少容纳人数;floor 为楼层数字(如 6 表示 6 层),不要把楼层写进 room_name。"""
     try:
         rooms = dws.search_rooms(dws.to_iso(start), dws.to_iso(end), room_name or None)
-        rooms = [dws.slim_room(r) for r in rooms if (r.get("capacity") or 0) >= min_capacity]
+        rooms = [dws.slim_room(r) for r in rooms if (r.get("capacity") or 0) >= min_capacity and (not floor or dws.on_floor(r, floor))]
         return {"success": True, "rooms": rooms[:10], "total": len(rooms)}
     except Exception as ex:
         return _err(ex)
@@ -109,9 +109,9 @@ def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int
 
 @mcp.tool()
 def draft_calendar_event(title: str, start: str, end: str, attendee_names: list[str] | None = None,
-                         room_name: str = "", need_room: bool = False, min_capacity: int = 0, desc: str = "") -> dict:
+                         room_name: str = "", need_room: bool = False, min_capacity: int = 0, floor: int = 0, desc: str = "") -> dict:
     """起草一个钉钉日程,但【不会创建】。参会人用姓名即可(会自动查 userId,重名会返回候选让你问用户)。
-    need_room=true 或给了 room_name 时会自动挑一个该时段空闲、容量够(min_capacity)的最小会议室,优先无需审批的;若只能选需审批的,preview 会注明,必须告诉用户「提交后要审批,通过前不算订到」。
+    need_room=true 或给了 room_name 时会自动挑一个该时段空闲、容量够(min_capacity)的最小会议室,优先无需审批的;用户指定楼层时传 floor(数字);若只能选需审批的,preview 会注明,必须告诉用户「提交后要审批,通过前不算订到」。
     调用后把 preview 念给用户并问「确认创建吗」;用户明确确认后才可用 confirm_code 调用 confirm_calendar_event。"""
     try:
         s, e = dws.to_iso(start), dws.to_iso(end)
@@ -127,7 +127,10 @@ def draft_calendar_event(title: str, start: str, end: str, attendee_names: list[
         rooms, room_label = [], ""
         if need_room or room_name:
             need = max(min_capacity, len(ids) + 1)
-            chosen = dws.pick_room(dws.search_rooms(s, e, room_name or None), need)
+            cands = dws.search_rooms(s, e, room_name or None)
+            if floor:
+                cands = [r for r in cands if dws.on_floor(r, floor)]
+            chosen = dws.pick_room(cands, need)
             if chosen is None:
                 return {"success": False, "error": "该时段没有容量够用的空闲会议室"}
             rooms = [chosen["roomId"]]

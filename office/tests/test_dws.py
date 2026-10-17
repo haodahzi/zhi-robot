@@ -45,6 +45,14 @@ class DwsTest(unittest.TestCase):
         rooms = [{"roomId": "b", "capacity": 8, "needApproval": True}]
         self.assertEqual(d.pick_room(rooms, 5)["roomId"], "b")
 
+    def test_on_floor(self):
+        r6 = {"fullGroupPath": "6层 会议室", "roomName": "06F-2号会议室"}
+        r16 = {"fullGroupPath": "16层 会议室", "roomName": "16F-1号会议室"}
+        self.assertTrue(d.on_floor(r6, 6))
+        self.assertFalse(d.on_floor(r16, 6))
+        self.assertTrue(d.on_floor(r16, 16))
+        self.assertTrue(d.on_floor({"roomName": "12F乞力马扎罗"}, 12))
+
     def test_errors(self):
         with self.assertRaises(d.DwsError):
             d.run(["x"], fake(code=1))
