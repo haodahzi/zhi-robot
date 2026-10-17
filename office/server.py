@@ -26,6 +26,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
 
+VERSION = "2026-10-17-r6"
 logger = logging.getLogger("OfficeAssistant")
 mcp = FastMCP("OfficeAssistant")
 pending = PendingStore()
@@ -199,4 +200,5 @@ def confirm_dws_group_message(confirm_code: str) -> dict:
 
 
 if __name__ == "__main__":
+    print(f"OfficeAssistant {VERSION} tools={os.environ.get('OFFICE_TOOLS') or 'all'}", file=sys.stderr, flush=True)
     mcp.run(transport="stdio")
