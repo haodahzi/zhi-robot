@@ -15,7 +15,6 @@ import logging
 import os
 import sys
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from fastmcp import FastMCP
 
@@ -26,7 +25,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
 
-VERSION = "2026-10-17-r6"
+VERSION = "2026-10-17-r7"
 logger = logging.getLogger("OfficeAssistant")
 mcp = FastMCP("OfficeAssistant")
 pending = PendingStore()
@@ -44,9 +43,9 @@ def _webhook_tool(fn):
 
 
 @_tool
-def get_current_time() -> dict:
-    """获取当前日期和时间(北京时间)。用户说「明天」「下周三」「下午三点」这类相对时间时,先调用本工具得到今天的日期,再换算成具体日期时间。"""
-    now = datetime.now(ZoneInfo("Asia/Shanghai"))
+def get_current_time(timezone: str) -> dict:
+    """获取当前日期和时间(固定北京时间,timezone 参数请固定传 Asia/Shanghai)。用户说「明天」「下周三」「下午三点」这类相对时间时,先调用本工具得到今天的日期,再换算成具体日期时间。"""
+    now = datetime.now(dws.TZ)  # Windows 的 Python 默认没有时区数据库,不用 ZoneInfo
     weekday = "一二三四五六日"[now.weekday()]
     return {"success": True, "iso": now.isoformat(timespec="seconds"), "weekday": f"星期{weekday}", "timezone": "Asia/Shanghai"}
 
