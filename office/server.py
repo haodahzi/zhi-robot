@@ -12,6 +12,7 @@
 运行方式见 office/README.md。
 """
 import logging
+import os
 import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -30,6 +31,11 @@ mcp = FastMCP("OfficeAssistant")
 pending = PendingStore()
 
 
+def _webhook_tool(fn):
+    """Webhook 群机器人只是备用方案:没配置 DINGTALK_WEBHOOK 就不暴露,工具越少模型越不容易选错。"""
+    return mcp.tool()(fn) if os.environ.get("DINGTALK_WEBHOOK", "").strip() else fn
+
+
 @mcp.tool()
 def get_current_time(timezone: str = "Asia/Shanghai") -> dict:
     """获取当前日期和时间。用户说「明天」「下周三」「下午三点」这类相对时间时,先调用本工具得到今天的日期,再换算成具体日期时间。"""
@@ -38,7 +44,7 @@ def get_current_time(timezone: str = "Asia/Shanghai") -> dict:
     return {"success": True, "iso": now.isoformat(timespec="seconds"), "weekday": f"星期{weekday}", "timezone": timezone}
 
 
-@mcp.tool()
+@_webhook_tool
 def draft_dingtalk_group_message(text: str) -> dict:
     """起草一条要发到钉钉群的消息,但【不会发送】。调用后必须把 preview 的内容念给用户听,并问「确认发送吗」。
     只有用户明确说「确认」「发吧」之后,才可以用返回的 confirm_code 调用 confirm_dingtalk_group_message。用户说「取消」就不要再调用。"""
@@ -52,7 +58,7 @@ def draft_dingtalk_group_message(text: str) -> dict:
             "next": "把 preview 念给用户并询问是否确认发送"}
 
 
-@mcp.tool()
+@_webhook_tool
 def confirm_dingtalk_group_message(confirm_code: str) -> dict:
     """用户确认后,发送之前起草的钉钉群消息。confirm_code 来自 draft_dingtalk_group_message。没有用户明确确认时禁止调用。"""
     item = pending.pop(confirm_code.strip())
@@ -108,9 +114,9 @@ def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int
 
 
 @mcp.tool()
-def draft_calendar_event(title: str, start: str, end: str, attendee_names: list[str] | None = None,
+def draft_calendar_event(title: str, start: str, end: str, attendee_names: str = "",
                          room_name: str = "", need_room: bool = False, min_capacity: int = 0, floor: int = 0, desc: str = "") -> dict:
-    """起草一个钉钉日程,但【不会创建】。参会人用姓名即可(会自动查 userId,重名会返回候选让你问用户)。
+    """起草一个钉钉日程,但【不会创建】。参会人用姓名即可,多人用逗号分隔,如「张三,李四」(会自动查 userId,重名会返回候选让你问用户)。
     need_room=true 或给了 room_name 时会自动挑一个该时段空闲、容量够(min_capacity)的最小会议室,优先无需审批的;用户指定楼层时传 floor(数字);若只能选需审批的,preview 会注明,必须告诉用户「提交后要审批,通过前不算订到」。
     调用后把 preview 念给用户并问「确认创建吗」;用户明确确认后才可用 confirm_code 调用 confirm_calendar_event。"""
     try:
@@ -118,7 +124,7 @@ def draft_calendar_event(title: str, start: str, end: str, attendee_names: list[
         if e <= s:
             return {"success": False, "error": "结束时间必须晚于开始时间"}
         ids, names = [], []
-        for n in attendee_names or []:
+        for n in [x.strip() for x in attendee_names.replace("，", ",").split(",") if x.strip()]:
             cands = dws.find_person(n)
             if len(cands) != 1:
                 return {"success": False, "error": f"「{n}」匹配到 {len(cands)} 人,请让用户说明是哪位", "candidates": cands[:5]}
