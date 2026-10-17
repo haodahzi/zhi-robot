@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "office-assistant": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["C:/路径/到/zhi-robot/office/server.py"]
+    }
+  }
+}

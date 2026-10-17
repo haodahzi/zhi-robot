@@ -7,6 +7,11 @@ name: Build firmware
 
 on:
   push:
+    # 办公助手分支:只有固件相关文件变化时才编译,改 office/ 不会触发
+    paths:
+      - 'boards/**'
+      - 'register-board.patch'
+      - '.github/workflows/build-firmware.yml'
   workflow_dispatch:
     inputs:
       upstream_ref:
