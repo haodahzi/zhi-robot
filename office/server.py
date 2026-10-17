@@ -31,12 +31,18 @@ mcp = FastMCP("OfficeAssistant")
 pending = PendingStore()
 
 
+def _tool(fn):
+    """注册为 MCP 工具。排查问题时可设置环境变量 OFFICE_TOOLS=工具名1,工具名2 只暴露指定的工具。"""
+    only = {x.strip() for x in os.environ.get("OFFICE_TOOLS", "").split(",") if x.strip()}
+    return mcp.tool()(fn) if not only or fn.__name__ in only else fn
+
+
 def _webhook_tool(fn):
     """Webhook 群机器人只是备用方案:没配置 DINGTALK_WEBHOOK 就不暴露,工具越少模型越不容易选错。"""
-    return mcp.tool()(fn) if os.environ.get("DINGTALK_WEBHOOK", "").strip() else fn
+    return _tool(fn) if os.environ.get("DINGTALK_WEBHOOK", "").strip() else fn
 
 
-@mcp.tool()
+@_tool
 def get_current_time(timezone: str = "Asia/Shanghai") -> dict:
     """获取当前日期和时间。用户说「明天」「下周三」「下午三点」这类相对时间时,先调用本工具得到今天的日期,再换算成具体日期时间。"""
     now = datetime.now(ZoneInfo(timezone))
@@ -79,7 +85,7 @@ def _err(e: Exception) -> dict:
     return {"success": False, "error": str(e)}
 
 
-@mcp.tool()
+@_tool
 def get_schedule(date: str = "", start: str = "", end: str = "") -> dict:
     """查询本人的钉钉日程。查某一天:传 date(如 2026-03-10);查某个时间段:传 start 和 end(如 2026-03-10T14:00)。都不传则查今天。"""
     try:
@@ -93,7 +99,7 @@ def get_schedule(date: str = "", start: str = "", end: str = "") -> dict:
         return _err(ex)
 
 
-@mcp.tool()
+@_tool
 def find_person(name: str) -> dict:
     """按姓名查同事,返回候选(含 userId)。重名时需向用户确认是哪一位。"""
     try:
@@ -102,7 +108,7 @@ def find_person(name: str) -> dict:
         return _err(ex)
 
 
-@mcp.tool()
+@_tool
 def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int = 0, floor: int = 0) -> dict:
     """查询指定时间段内空闲的会议室。room_name 只传核心专名(如「永澄亭」,不要带「会议室」三个字和楼层前缀);min_capacity 为最少容纳人数;floor 为楼层数字(如 6 表示 6 层),不要把楼层写进 room_name。"""
     try:
@@ -113,7 +119,7 @@ def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int
         return _err(ex)
 
 
-@mcp.tool()
+@_tool
 def draft_calendar_event(title: str, start: str, end: str, attendee_names: str = "",
                          room_name: str = "", need_room: bool = False, min_capacity: int = 0, floor: int = 0, desc: str = "") -> dict:
     """起草一个钉钉日程,但【不会创建】。参会人用姓名即可,多人用逗号分隔,如「张三,李四」(会自动查 userId,重名会返回候选让你问用户)。
@@ -151,7 +157,7 @@ def draft_calendar_event(title: str, start: str, end: str, attendee_names: str =
         return _err(ex)
 
 
-@mcp.tool()
+@_tool
 def confirm_calendar_event(confirm_code: str) -> dict:
     """用户明确确认后,创建之前起草的日程。没有用户明确确认时禁止调用。"""
     item = pending.pop(confirm_code.strip())
@@ -165,7 +171,7 @@ def confirm_calendar_event(confirm_code: str) -> dict:
         return _err(ex)
 
 
-@mcp.tool()
+@_tool
 def draft_dws_group_message(group_name: str, text: str) -> dict:
     """起草一条以本人身份发到某钉钉群的消息(按群名查找),但【不会发送】。把 preview 念给用户并问是否确认。"""
     text = text.strip()
@@ -183,7 +189,7 @@ def draft_dws_group_message(group_name: str, text: str) -> dict:
         return _err(ex)
 
 
-@mcp.tool()
+@_tool
 def confirm_dws_group_message(confirm_code: str) -> dict:
     """用户明确确认后,发送之前起草的群消息。没有用户明确确认时禁止调用。"""
     item = pending.pop(confirm_code.strip())
