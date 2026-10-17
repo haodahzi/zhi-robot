@@ -43,11 +43,11 @@ def _webhook_tool(fn):
 
 
 @_tool
-def get_current_time(timezone: str = "Asia/Shanghai") -> dict:
-    """获取当前日期和时间。用户说「明天」「下周三」「下午三点」这类相对时间时,先调用本工具得到今天的日期,再换算成具体日期时间。"""
-    now = datetime.now(ZoneInfo(timezone))
+def get_current_time() -> dict:
+    """获取当前日期和时间(北京时间)。用户说「明天」「下周三」「下午三点」这类相对时间时,先调用本工具得到今天的日期,再换算成具体日期时间。"""
+    now = datetime.now(ZoneInfo("Asia/Shanghai"))
     weekday = "一二三四五六日"[now.weekday()]
-    return {"success": True, "iso": now.isoformat(timespec="seconds"), "weekday": f"星期{weekday}", "timezone": timezone}
+    return {"success": True, "iso": now.isoformat(timespec="seconds"), "weekday": f"星期{weekday}", "timezone": "Asia/Shanghai"}
 
 
 @_webhook_tool
@@ -86,14 +86,10 @@ def _err(e: Exception) -> dict:
 
 
 @_tool
-def get_schedule(date: str = "", start: str = "", end: str = "") -> dict:
-    """查询本人的钉钉日程。查某一天:传 date(如 2026-03-10);查某个时间段:传 start 和 end(如 2026-03-10T14:00)。都不传则查今天。"""
+def get_schedule(start: str, end: str) -> dict:
+    """查询本人的钉钉日程。start、end 是时间段的起止,格式如 2026-03-10T00:00。查某一天就传当天的 00:00 和 23:59。"""
     try:
-        if start and end:
-            s, e = dws.to_iso(start), dws.to_iso(end)
-        else:
-            day = date or datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
-            s, e = dws.day_range(day)
+        s, e = dws.to_iso(start), dws.to_iso(end)
         return {"success": True, "range": [s, e], "events": dws.list_events(s, e)}
     except Exception as ex:
         return _err(ex)
@@ -109,8 +105,8 @@ def find_person(name: str) -> dict:
 
 
 @_tool
-def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int = 0, floor: int = 0) -> dict:
-    """查询指定时间段内空闲的会议室。room_name 只传核心专名(如「永澄亭」,不要带「会议室」三个字和楼层前缀);min_capacity 为最少容纳人数;floor 为楼层数字(如 6 表示 6 层),不要把楼层写进 room_name。"""
+def find_free_rooms(start: str, end: str, room_name: str, min_capacity: int, floor: int) -> dict:
+    """查询指定时间段内空闲的会议室。所有参数都必须传:room_name 只传核心专名(如「永澄亭」,不要带「会议室」三个字和楼层前缀),不限则传空字符串;min_capacity 为最少容纳人数,不限传 0;floor 为楼层数字(如 6 表示 6 层),不限传 0,不要把楼层写进 room_name。"""
     try:
         rooms = dws.search_rooms(dws.to_iso(start), dws.to_iso(end), room_name or None)
         rooms = [dws.slim_room(r) for r in rooms if (r.get("capacity") or 0) >= min_capacity and (not floor or dws.on_floor(r, floor))]
@@ -120,11 +116,11 @@ def find_free_rooms(start: str, end: str, room_name: str = "", min_capacity: int
 
 
 @_tool
-def draft_calendar_event(title: str, start: str, end: str, attendee_names: str = "",
-                         room_name: str = "", need_room: bool = False, min_capacity: int = 0, floor: int = 0, desc: str = "") -> dict:
+def draft_calendar_event(title: str, start: str, end: str, attendee_names: str, room_name: str,
+                         need_room: bool, min_capacity: int, floor: int, desc: str) -> dict:
     """起草一个钉钉日程,但【不会创建】。参会人用姓名即可,多人用逗号分隔,如「张三,李四」(会自动查 userId,重名会返回候选让你问用户)。
     need_room=true 或给了 room_name 时会自动挑一个该时段空闲、容量够(min_capacity)的最小会议室,优先无需审批的;用户指定楼层时传 floor(数字);若只能选需审批的,preview 会注明,必须告诉用户「提交后要审批,通过前不算订到」。
-    调用后把 preview 念给用户并问「确认创建吗」;用户明确确认后才可用 confirm_code 调用 confirm_calendar_event。"""
+    所有参数都必须传:没有参会人 attendee_names 传空字符串;不订会议室时 need_room 传 false;room_name、desc 没有就传空字符串;min_capacity、floor 不限传 0。调用后把 preview 念给用户并问「确认创建吗」;用户明确确认后才可用 confirm_code 调用 confirm_calendar_event。"""
     try:
         s, e = dws.to_iso(start), dws.to_iso(end)
         if e <= s:
