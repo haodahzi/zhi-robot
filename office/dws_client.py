@@ -66,8 +66,8 @@ def list_events(start: str, end: str, runner=subprocess.run):
 
 
 def find_person(name: str, runner=subprocess.run) -> list[dict]:
-    data = run(["aisearch", "person", "--query", name, "--dimension", "name"], runner)
-    return find_dicts(data, "userId")
+    # 通讯录精确查询,实测返回 result[] 里含 userId / openDingTalkId / name
+    return find_dicts(run(["contact", "user", "search", "--query", name], runner), "userId")
 
 
 def search_rooms(start: str, end: str, name: str | None = None, runner=subprocess.run) -> list[dict]:
