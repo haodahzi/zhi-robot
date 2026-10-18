@@ -13,7 +13,7 @@
 
 | 工具 | 作用 |
 |---|---|
-| `get_current_time` | 让模型知道今天几号、星期几,才能换算「明天下午三点」 |
+| `office_now` | 让模型知道今天几号、星期几,才能换算「明天下午三点」 |
 | `draft_dingtalk_group_message` | 起草钉钉群消息(**不发送**),返回预览和确认码 |
 | `confirm_dingtalk_group_message` | 用户确认后才真正发送 |
 

@@ -1,7 +1,7 @@
 """办公助手 MCP 服务(通过小智的 MCP 接入点,让机器人用语音办公)。
 
 当前工具:
-  - get_current_time           当前日期时间(让模型能把「明天下午三点」换算成具体时间)
+  - office_now                 当前日期时间(让模型能把「明天下午三点」换算成具体时间)
   - draft_dingtalk_group_message / confirm_dingtalk_group_message
         钉钉群消息:先起草,复述给用户,用户确认后才真正发送
 
@@ -25,7 +25,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
 
-VERSION = "2026-10-17-r8"
+VERSION = "2026-10-18-r9"
 logger = logging.getLogger("OfficeAssistant")
 mcp = FastMCP("OfficeAssistant")
 pending = PendingStore()
@@ -43,7 +43,7 @@ def _webhook_tool(fn):
 
 
 @_tool
-def get_current_time(timezone: str) -> dict:
+def office_now(timezone: str) -> dict:
     """获取当前日期和时间(固定北京时间,timezone 参数请固定传 Asia/Shanghai)。用户说「明天」「下周三」「下午三点」这类相对时间时,先调用本工具得到今天的日期,再换算成具体日期时间。"""
     now = datetime.now(dws.TZ)  # Windows 的 Python 默认没有时区数据库,不用 ZoneInfo
     weekday = "一二三四五六日"[now.weekday()]
