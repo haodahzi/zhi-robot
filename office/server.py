@@ -25,7 +25,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
 
-VERSION = "2026-10-18-r11"
+VERSION = "2026-10-18-r12"
 logger = logging.getLogger("OfficeAssistant")
 mcp = FastMCP("OfficeAssistant")
 pending = PendingStore()
@@ -35,6 +35,17 @@ def _tool(fn):
     """注册为 MCP 工具。排查问题时可设置环境变量 OFFICE_TOOLS=工具名1,工具名2 只暴露指定的工具。"""
     only = {x.strip() for x in os.environ.get("OFFICE_TOOLS", "").split(",") if x.strip()}
     return mcp.tool()(fn) if not only or fn.__name__ in only else fn
+
+
+def _draft_variant(variant: str):
+    """排查用:同一个对外名字 draft_calendar_event 有几种写法,用环境变量 OFFICE_DRAFT_VARIANT 选其一(默认空)。"""
+    def deco(fn):
+        only = {x.strip() for x in os.environ.get("OFFICE_TOOLS", "").split(",") if x.strip()}
+        chosen = os.environ.get("OFFICE_DRAFT_VARIANT", "").strip().lower()
+        if chosen == variant and (not only or "draft_calendar_event" in only):
+            return mcp.tool(name="draft_calendar_event")(fn)
+        return fn
+    return deco
 
 
 def _webhook_tool(fn):
@@ -123,9 +134,7 @@ def find_free_rooms(start: str, end: str, room_name: str, min_capacity: str, flo
         return _err(ex)
 
 
-@_tool
-def draft_calendar_event(title: str, start: str, end: str, attendee_names: str, room_request: str) -> dict:
-    """起草一个钉钉日程,不会真正创建。attendee_names 填参会人姓名,多人用逗号分隔,没有就传空字符串。room_request 用一句话描述会议室要求,如「6层 8人」,不订会议室就传空字符串。"""
+def _draft_impl(title: str, start: str, end: str, attendee_names: str, room_request: str) -> dict:
     try:
         s, e = dws.to_iso(start), dws.to_iso(end)
         if e <= s:
@@ -157,6 +166,30 @@ def draft_calendar_event(title: str, start: str, end: str, attendee_names: str, 
                 "next": "把 preview 念给用户并问是否确认创建;用户明确说确认后,才用 confirm_code 调用 confirm_calendar_event;说取消就不要再调用"}
     except Exception as ex:
         return _err(ex)
+
+
+@_draft_variant("")
+def draft_calendar_event(title: str, start: str, end: str, attendee_names: str, room_request: str) -> dict:
+    """起草一个钉钉日程,不会真正创建。attendee_names 填参会人姓名,多人用逗号分隔,没有就传空字符串。room_request 用一句话描述会议室要求,如「6层 8人」,不订会议室就传空字符串。"""
+    return _draft_impl(title, start, end, attendee_names, room_request)
+
+
+@_draft_variant("a")
+def _draft_a(title: str, start: str, end: str, attendee_names: str, room_request: str) -> dict:
+    """Draft a DingTalk calendar event without creating it. attendee_names: names separated by commas, empty string if none. room_request: one short phrase about the meeting room, empty string for no room."""
+    return _draft_impl(title, start, end, attendee_names, room_request)
+
+
+@_draft_variant("b")
+def _draft_b(event_title: str, begin_time: str, finish_time: str, people: str, room: str) -> dict:
+    """起草一个钉钉日程,不会真正创建。people 填参会人姓名,多人用逗号分隔,没有就传空字符串。room 用一句话描述会议室要求,不订会议室就传空字符串。"""
+    return _draft_impl(event_title, begin_time, finish_time, people, room)
+
+
+@_draft_variant("c")
+def _draft_c(title: str) -> dict:
+    """起草一个只有自己的钉钉日程,不会真正创建。title 填日程标题和时间,如「明天下午三点 周会」。"""
+    return {"success": False, "error": "排查用的变体,不能真正起草"}
 
 
 @_tool
