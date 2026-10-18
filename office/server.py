@@ -25,7 +25,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
 
-VERSION = "2026-10-18-r13"
+VERSION = "2026-10-18-r14"
 logger = logging.getLogger("OfficeAssistant")
 mcp = FastMCP("OfficeAssistant")
 pending = PendingStore()
@@ -81,6 +81,17 @@ def confirm_dingtalk_group_message(confirm_code: str) -> dict:
     return {"success": True, "message": "已发送到钉钉群"}
 
 
+def _log(msg: str) -> None:
+    """写到 stderr:mcp_pipe 会把它显示在窗口里,方便看到每一步发生了什么(不会出现在 MCP 消息通道里)。"""
+    print(f"[office] {msg}", file=sys.stderr, flush=True)
+
+
+def _code(v: str) -> str:
+    """确认码是 4 位数字;模型有时会把 0123 传成 123,这里补齐。"""
+    v = str(v).strip()
+    return v.zfill(4) if v.isdigit() else v
+
+
 def _to_int(v) -> int:
     try:
         return max(int(str(v).strip() or 0), 0)
@@ -89,6 +100,7 @@ def _to_int(v) -> int:
 
 
 def _err(e: Exception) -> dict:
+    _log(f"出错: {e}")
     return {"success": False, "error": str(e)}
 
 
@@ -150,6 +162,7 @@ def _draft_impl(title: str, start: str, end: str, attendee_names: str, room_requ
                 room_label += "【需审批,提交后通过前不算订到】"
         payload = {"title": title.strip(), "start": s, "end": e, "attendees": ids, "rooms": rooms, "desc": ""}
         code = pending.add("calendar_event", payload)
+        _log(f"已起草日程,确认码 {code}: {title} {s}~{e} 参会人{names} 会议室{room_label or '无'}")
         preview = f"{title}:{s} 至 {e}" + (f";参会人:{'、'.join(names)}" if names else "") + (f";会议室:{room_label}" if rooms else "")
         return {"success": True, "preview": preview, "confirm_code": code, "expires_in_seconds": pending.ttl,
                 "next": "把 preview 念给用户并问是否确认创建;用户明确说确认后,才用 confirm_code 调用 confirm_calendar_event;说取消就不要再调用"}
@@ -166,12 +179,16 @@ def draft_calendar_event(title: str, start: str, end: str, attendee_names: str, 
 @_tool
 def confirm_calendar_event(confirm_code: str) -> dict:
     """用户明确确认后,创建之前起草的日程。没有用户明确确认时禁止调用。"""
-    item = pending.pop(confirm_code.strip())
+    code = _code(confirm_code)
+    item = pending.pop(code)
     if item is None or item[0] != "calendar_event":
+        _log(f"确认失败: 确认码 {code!r} 无效或已过期(收到的原始值 {confirm_code!r})")
         return {"success": False, "error": "确认码无效或已过期,请重新起草"}
     p = item[1]
     try:
+        _log(f"收到确认,正在创建: {p['title']} {p['start']}~{p['end']}")
         dws.create_event(p["title"], p["start"], p["end"], p["attendees"], p["rooms"], p["desc"])
+        _log("日程创建成功")
         return {"success": True, "message": "日程已创建" + ("(会议室已提交预订,若需审批请等审批通过)" if p["rooms"] else "")}
     except Exception as ex:
         return _err(ex)
@@ -198,7 +215,7 @@ def draft_dws_group_message(group_name: str, text: str) -> dict:
 @_tool
 def confirm_dws_group_message(confirm_code: str) -> dict:
     """Send the drafted group message. Only call this after the user explicitly agreed. confirm_code comes from draft_dws_group_message."""
-    item = pending.pop(confirm_code.strip())
+    item = pending.pop(_code(confirm_code))
     if item is None or item[0] != "dws_group_message":
         return {"success": False, "error": "确认码无效或已过期,请重新起草"}
     try:
