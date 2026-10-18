@@ -53,6 +53,39 @@ class DwsTest(unittest.TestCase):
         self.assertTrue(d.on_floor(r16, 16))
         self.assertTrue(d.on_floor({"roomName": "12F乞力马扎罗"}, 12))
 
+    def test_parse_room_request(self):
+        self.assertEqual(d.parse_room_request("6层 8人"), ("", 6, 8))
+        self.assertEqual(d.parse_room_request("订一个6楼能坐5个人的会议室"), ("", 6, 5))
+        self.assertEqual(d.parse_room_request("乞力马扎罗会议室"), ("乞力马扎罗", 0, 0))
+        self.assertEqual(d.parse_room_request(""), ("", 0, 0))
+        self.assertEqual(d.parse_room_request("六层 八个人"), ("", 6, 8))
+        self.assertEqual(d.parse_room_request("十二楼 二十人"), ("", 12, 20))
+        self.assertEqual(d.parse_room_request("6层乞力马扎罗"), ("乞力马扎罗", 6, 0))
+
+    def test_cn_to_int(self):
+        self.assertEqual([d.cn_to_int(x) for x in ("5", "六", "十", "十二", "二十", "二十三", "两")], [5, 6, 10, 12, 20, 23, 2])
+
+    def test_confirmed_retries_without_yes_when_flag_unknown(self):
+        calls = []
+
+        def runner(cmd, **kw):
+            calls.append(cmd)
+            if "--yes" in cmd:
+                return subprocess.CompletedProcess(cmd, 1, "", "Error: unknown flag: --yes")
+            return subprocess.CompletedProcess(cmd, 0, "{}", "")
+        d.run_confirmed(["calendar", "event", "create"], runner)
+        self.assertEqual(len(calls), 2)
+        self.assertNotIn("--yes", calls[1])
+
+    def test_stdin_is_detached(self):
+        seen = {}
+
+        def runner(cmd, **kw):
+            seen.update(kw)
+            return subprocess.CompletedProcess(cmd, 0, "{}", "")
+        d.run(["x"], runner)
+        self.assertIs(seen["stdin"], subprocess.DEVNULL)
+
     def test_errors(self):
         with self.assertRaises(d.DwsError):
             d.run(["x"], fake(code=1))

@@ -25,7 +25,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
 
-VERSION = "2026-10-18-r10"
+VERSION = "2026-10-18-r11"
 logger = logging.getLogger("OfficeAssistant")
 mcp = FastMCP("OfficeAssistant")
 pending = PendingStore()
@@ -48,13 +48,6 @@ def office_now(query: str) -> dict:
     now = datetime.now(dws.TZ)  # Windows 的 Python 默认没有时区数据库,不用 ZoneInfo
     weekday = "一二三四五六日"[now.weekday()]
     return {"success": True, "iso": now.isoformat(timespec="seconds"), "weekday": f"星期{weekday}"}
-
-
-@_tool
-def office_today(query: str) -> dict:
-    """Return today's date and weekday in Beijing time. Pass any text as query."""
-    now = datetime.now(dws.TZ)
-    return {"success": True, "iso": now.isoformat(timespec="seconds"), "weekday": "一二三四五六日"[now.weekday()]}
 
 
 @_webhook_tool
@@ -131,11 +124,8 @@ def find_free_rooms(start: str, end: str, room_name: str, min_capacity: str, flo
 
 
 @_tool
-def draft_calendar_event(title: str, start: str, end: str, attendee_names: str, room_name: str,
-                         need_room: str, min_capacity: str, floor: str) -> dict:
-    """起草一个钉钉日程,但【不会创建】。参会人用姓名即可,多人用逗号分隔,如「张三,李四」(会自动查 userId,重名会返回候选让你问用户)。
-    need_room 为「是」或给了 room_name 时会自动挑一个该时段空闲、容量够(min_capacity)的最小会议室,优先无需审批的;用户指定楼层时传 floor(数字);若只能选需审批的,preview 会注明,必须告诉用户「提交后要审批,通过前不算订到」。
-    所有参数都必须传,且都是文字:没有参会人 attendee_names 传空字符串;要订会议室 need_room 传「是」,不订传「否」;room_name 没有就传空字符串;min_capacity(最少人数)、floor(楼层)不限就传 0。调用后把 preview 念给用户并问「确认创建吗」;用户明确确认后才可用 confirm_code 调用 confirm_calendar_event。"""
+def draft_calendar_event(title: str, start: str, end: str, attendee_names: str, room_request: str) -> dict:
+    """起草一个钉钉日程,不会真正创建。attendee_names 填参会人姓名,多人用逗号分隔,没有就传空字符串。room_request 用一句话描述会议室要求,如「6层 8人」,不订会议室就传空字符串。"""
     try:
         s, e = dws.to_iso(start), dws.to_iso(end)
         if e <= s:
@@ -148,15 +138,14 @@ def draft_calendar_event(title: str, start: str, end: str, attendee_names: str, 
             ids.append(cands[0]["userId"])
             names.append(cands[0].get("name") or n)
         rooms, room_label = [], ""
-        cap, fl = _to_int(min_capacity), _to_int(floor)
-        if need_room.strip() in ("是", "true", "True", "yes") or room_name.strip():
-            need = max(cap, len(ids) + 1)
-            cands = dws.search_rooms(s, e, room_name.strip() or None)
+        if room_request.strip():
+            room_name, fl, cap = dws.parse_room_request(room_request)
+            cands = dws.search_rooms(s, e, room_name or None)
             if fl:
                 cands = [r for r in cands if dws.on_floor(r, fl)]
-            chosen = dws.pick_room(cands, need)
+            chosen = dws.pick_room(cands, max(cap, len(ids) + 1))
             if chosen is None:
-                return {"success": False, "error": "该时段没有容量够用的空闲会议室"}
+                return {"success": False, "error": "该时段没有符合条件的空闲会议室"}
             rooms = [chosen["roomId"]]
             room_label = f"{chosen.get('roomName')}(可坐{chosen.get('capacity')}人)"
             if chosen.get("needApproval"):
@@ -164,7 +153,8 @@ def draft_calendar_event(title: str, start: str, end: str, attendee_names: str, 
         payload = {"title": title.strip(), "start": s, "end": e, "attendees": ids, "rooms": rooms, "desc": ""}
         code = pending.add("calendar_event", payload)
         preview = f"{title}:{s} 至 {e}" + (f";参会人:{'、'.join(names)}" if names else "") + (f";会议室:{room_label}" if rooms else "")
-        return {"success": True, "preview": preview, "confirm_code": code, "expires_in_seconds": pending.ttl}
+        return {"success": True, "preview": preview, "confirm_code": code, "expires_in_seconds": pending.ttl,
+                "next": "把 preview 念给用户并问是否确认创建;用户明确说确认后,才用 confirm_code 调用 confirm_calendar_event;说取消就不要再调用"}
     except Exception as ex:
         return _err(ex)
 

@@ -14,8 +14,14 @@
 | 工具 | 作用 |
 |---|---|
 | `office_now` | 让模型知道今天几号、星期几,才能换算「明天下午三点」 |
-| `draft_dingtalk_group_message` | 起草钉钉群消息(**不发送**),返回预览和确认码 |
-| `confirm_dingtalk_group_message` | 用户确认后才真正发送 |
+| `find_person` | 按姓名查同事(`dws contact user search`) |
+| `get_schedule` | 查本人某个时间段的日程 |
+| `find_free_rooms` | 查某时段空闲会议室(可按楼层、人数筛选) |
+| `draft_calendar_event` / `confirm_calendar_event` | 建日程(可带参会人、会议室):先起草,复述,确认后才创建 |
+| `draft_dws_group_message` / `confirm_dws_group_message` | 以本人身份发群消息:先起草,确认后才发送 |
+
+> 经验:小智云端对工具的「形状」很挑剔。目前验证过能用的:参数全部是必填的文字、说明是短的普通中文、参数名不要叫 `timezone`、说明里不要带 `Asia/Shanghai` 这类英文斜杠。新增工具请照这个写。
+> 排查时可设置环境变量 `OFFICE_TOOLS=工具名1,工具名2` 只开放部分工具;`mcp_pipe.py` 的日志级别改成 DEBUG 能看到每条消息。
 
 写操作一律「先起草、复述、确认、再执行」。确认码 90 秒有效、一次有效。
 

@@ -52,7 +52,8 @@ def run(args: list[str], runner=subprocess.run, timeout: float = 40.0):
         raise DwsError("当前 dws 只能通过 cmd.exe 调用,内容里含有 & | < > ^ % \" 等特殊字符,请去掉后重试")
     cmd = [*prefix, *args, "--format", "json"]
     try:
-        r = runner(cmd, capture_output=True, text=True, encoding="utf-8", timeout=timeout)
+        # stdin 必须断开:本进程的 stdin 是 MCP 消息通道,dws 若弹出确认提示会把小智的消息吞掉
+        r = runner(cmd, capture_output=True, text=True, encoding="utf-8", timeout=timeout, stdin=subprocess.DEVNULL)
     except FileNotFoundError:
         raise DwsError("找不到 dws 命令,请先安装并执行 dws auth login")
     except subprocess.TimeoutExpired:
@@ -121,7 +122,17 @@ def create_event(title: str, start: str, end: str, attendees: list[str], rooms: 
         args += ["--rooms", ",".join(rooms)]
     if desc:
         args += ["--desc", desc]
-    return run(args + ["--yes"], runner)
+    return run_confirmed(args, runner)
+
+
+def run_confirmed(args: list[str], runner=subprocess.run):
+    """写操作:已经在上层完成「复述-确认」,所以带 --yes 跳过 dws 自己的确认;若这条命令不认 --yes,去掉重试一次。"""
+    try:
+        return run(args + ["--yes"], runner)
+    except DwsError as e:
+        if "unknown flag" in str(e).lower() or "unknown shorthand" in str(e).lower():
+            return run(args, runner)
+        raise
 
 
 def search_group(name: str, runner=subprocess.run) -> list[dict]:
@@ -129,7 +140,7 @@ def search_group(name: str, runner=subprocess.run) -> list[dict]:
 
 
 def send_group_message(conversation_id: str, text: str, runner=subprocess.run):
-    return run(["chat", "message", "send", "--conversation-id", conversation_id, "--content", text, "--yes"], runner)
+    return run_confirmed(["chat", "message", "send", "--conversation-id", conversation_id, "--content", text], runner)
 
 
 def slim_room(r: dict) -> dict:
@@ -157,3 +168,38 @@ def on_floor(room: dict, floor: int) -> bool:
     用数字边界避免 6 匹配到 16 层。"""
     text = f"{room.get('fullGroupPath') or ''} {room.get('roomName') or ''}"
     return bool(re.search(rf"(?<!\d){floor}层", text) or re.search(rf"(?<!\d)0?{floor}F", text, re.I))
+
+
+_ROOM_STOP = ("会议室", "预订", "随便", "任意", "空闲", "需要", "容纳", "能坐", "可坐", "一个", "一间", "订", "的", "个", "间", "坐", "要", ",", ",", "。", " ")
+_CN_DIGIT = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+_NUM = r"(\d+|[零〇一二两三四五六七八九十]+)"
+
+
+def cn_to_int(text: str) -> int:
+    """阿拉伯数字或 99 以内的中文数字(语音转文字常给「六」「十二」「二十三」)转成整数。"""
+    if text.isdigit():
+        return int(text)
+    if "十" in text:
+        head, _, tail = text.partition("十")
+        return (_CN_DIGIT.get(head, 1) if head else 1) * 10 + (_CN_DIGIT.get(tail, 0) if tail else 0)
+    n = 0
+    for ch in text:
+        n = n * 10 + _CN_DIGIT.get(ch, 0)
+    return n
+
+
+def parse_room_request(text: str) -> tuple[str, int, int]:
+    """把一句话的会议室要求拆成 (名称关键词, 楼层, 最少人数),如「6层 8人」->("", 6, 8)。拆不出来的部分当作名称。"""
+    t = text or ""
+    floor = cap = 0
+    m = re.search(_NUM + r"\s*(?:层|楼|[Ff])", t)
+    if m:
+        floor = cn_to_int(m.group(1))
+        t = t.replace(m.group(0), " ")
+    m = re.search(_NUM + r"\s*(?:个\s*)?(?:人|位)", t)
+    if m:
+        cap = cn_to_int(m.group(1))
+        t = t.replace(m.group(0), " ")
+    for w in _ROOM_STOP:
+        t = t.replace(w, "")
+    return t.strip(), floor, cap
