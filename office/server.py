@@ -25,7 +25,7 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
 
-VERSION = "2026-10-18-r9"
+VERSION = "2026-10-18-r10"
 logger = logging.getLogger("OfficeAssistant")
 mcp = FastMCP("OfficeAssistant")
 pending = PendingStore()
@@ -43,11 +43,18 @@ def _webhook_tool(fn):
 
 
 @_tool
-def office_now(timezone: str) -> dict:
-    """获取当前日期和时间(固定北京时间,timezone 参数请固定传 Asia/Shanghai)。用户说「明天」「下周三」「下午三点」这类相对时间时,先调用本工具得到今天的日期,再换算成具体日期时间。"""
+def office_now(query: str) -> dict:
+    """查询当前的日期和星期,query 传任意文字即可。用户说「明天」「下周三」「下午三点」这类相对时间时,先调用本工具知道今天是几号。"""
     now = datetime.now(dws.TZ)  # Windows 的 Python 默认没有时区数据库,不用 ZoneInfo
     weekday = "一二三四五六日"[now.weekday()]
-    return {"success": True, "iso": now.isoformat(timespec="seconds"), "weekday": f"星期{weekday}", "timezone": "Asia/Shanghai"}
+    return {"success": True, "iso": now.isoformat(timespec="seconds"), "weekday": f"星期{weekday}"}
+
+
+@_tool
+def office_today(query: str) -> dict:
+    """Return today's date and weekday in Beijing time. Pass any text as query."""
+    now = datetime.now(dws.TZ)
+    return {"success": True, "iso": now.isoformat(timespec="seconds"), "weekday": "一二三四五六日"[now.weekday()]}
 
 
 @_webhook_tool
